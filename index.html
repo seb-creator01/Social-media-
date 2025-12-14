@@ -125,6 +125,53 @@
             padding: 5px 10px;
         }
         
+        /* --- NOTIFICATION STYLES --- */
+        .notification-container {
+            position: relative; 
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .badge {
+            position: absolute;
+            top: 0px;
+            right: 5px;
+            background-color: var(--color-danger); 
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 50%;
+            line-height: 1;
+            font-weight: 700;
+        }
+        .notification-dropdown {
+            display: none; 
+            position: absolute;
+            top: 50px; 
+            right: 0;
+            width: 300px;
+            background-color: var(--color-card-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 200; 
+            padding: 15px;
+        }
+        .notification-dropdown h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 5px;
+        }
+        #notifications-list p {
+            padding: 8px 0;
+            margin: 0;
+            font-size: 0.9rem;
+            border-bottom: 1px dotted var(--color-border);
+        }
+        #notifications-list p:last-child {
+            border-bottom: none;
+        }
+        
         /* --- PAGE CONTENT --- */
         .page-content {
             padding-top: 20px;
@@ -191,14 +238,7 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
-        .chat-item:hover {
-            background-color: var(--color-border);
-        }
-        .chat-info {
-            flex-grow: 1;
-            overflow: hidden;
-        }
-        /* Chat Window Modal Styles */
+        /* Chat Window Modal Styles (Persistent UI) */
         #chat-window-modal {
             position: fixed;
             bottom: 0;
@@ -216,14 +256,6 @@
             box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
             border: 1px solid var(--color-border);
         }
-        .chat-header-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            border-bottom: 1px solid var(--color-border);
-            font-weight: 600;
-        }
         .chat-messages-container {
             flex-grow: 1;
             padding: 15px;
@@ -236,11 +268,6 @@
             display: flex;
             padding: 10px;
             border-top: 1px solid var(--color-border);
-        }
-        .chat-input-area input {
-            flex-grow: 1;
-            margin-bottom: 0;
-            margin-right: 10px;
         }
         /* Message Bubble Styles */
         .message {
@@ -276,6 +303,23 @@
                 <div id="app-nav" style="display: none;">
                     <button class="btn-icon" onclick="showView('home-view')"><i class="fas fa-home"></i> Home</button>
                     <button class="btn-icon" onclick="showView('chat-page-view')"><i class="fas fa-comment-dots"></i> Chat</button>
+                    
+                    <div class="notification-container">
+                        <button class="btn-icon" onclick="toggleNotificationMenu()">
+                            <i class="fas fa-bell"></i>
+                            <span id="notification-count" class="badge">3</span>
+                        </button>
+                        <div id="notification-menu" class="notification-dropdown">
+                            <h4>Notifications</h4>
+                            <div id="notifications-list">
+                                <p><strong>Alex_The_Dev</strong> liked your post.</p>
+                                <p><strong>Marketing_Mgr</strong> started following you.</p>
+                                <p>New message from **Alex_The_Dev**.</p>
+                            </div>
+                            <a href="#" onclick="alert('View All clicked!')">View All</a>
+                        </div>
+                    </div>
+                    
                     <button class="btn-icon" onclick="showView('profile-page-view')"><i class="fas fa-user"></i> Profile</button>
                     <button class="btn-primary" onclick="logout()" style="margin-left: 15px; padding: 10px 15px;">Logout</button>
                 </div>
@@ -423,7 +467,7 @@
         let activeChatId = null; 
         let activeRecipientName = null;
         let activeRecipientUID = null;
-        let unsubscribeFromMessages = null; // Listener cleanup variable
+        let unsubscribeFromMessages = null; 
         
         const authView = document.getElementById('auth-view');
         const usernameInput = document.getElementById('username');
@@ -436,7 +480,6 @@
         const profilePageView = document.getElementById('profile-page-view');
         const chatPageView = document.getElementById('chat-page-view');
         
-        // MOCK UIDs for chat demonstration (Replace with real UIDs in a finished app)
         const MOCK_RECIPIENTS = {
             'Alex_The_Dev': 'ALEX-DEV-UID-12345', 
             'Marketing_Mgr': 'MARKETING-MGR-UID-67890'
@@ -457,10 +500,20 @@
             }
         });
 
+        // --- 4. NOTIFICATION MENU ---
+        function toggleNotificationMenu() {
+            const menu = document.getElementById('notification-menu');
+            if (menu.style.display === 'block') {
+                menu.style.display = 'none';
+            } else {
+                menu.style.display = 'block';
+                // Hide the badge count after opening the menu
+                document.getElementById('notification-count').style.display = 'none'; 
+            }
+        }
 
-        // --- 4. SPA NAVIGATION & AUTH UI CONTROL ---
+        // --- 5. SPA NAVIGATION & AUTH UI CONTROL ---
         
-        // Function to hide all views and show only the requested one
         function showView(viewId) {
             authView.style.display = 'none';
             homeView.style.display = 'none';
@@ -469,7 +522,6 @@
             document.getElementById(viewId).style.display = 'block';
         }
         
-        // Toggles between Sign Up and Login Forms
         function toggleAuthMode() {
             isSigningUp = !isSigningUp;
             const link = document.querySelector('#auth-view p a');
@@ -488,10 +540,9 @@
                 loginBtn.style.display = 'block';
             }
         }
-        toggleAuthMode(); // Initialize to Sign Up mode
+        toggleAuthMode();
 
-
-        // --- 5. AUTHENTICATION LOGIC ---
+        // --- 6. AUTHENTICATION LOGIC ---
 
         async function handleAuth(isSignUpAction) {
             const email = document.getElementById("email").value;
@@ -509,8 +560,6 @@
                     const user = userCredential.user;
 
                     await user.updateProfile({ displayName: username });
-
-                    // Create user document in Firestore
                     await db.collection('users').doc(user.uid).set({
                         displayName: username,
                         email: user.email,
@@ -536,7 +585,6 @@
             });
         }
 
-        // Auth state listener and initial app loader
         auth.onAuthStateChanged(user => {
             if (user) {
                 appNav.style.display = 'flex';
@@ -548,7 +596,7 @@
             }
         });
 
-        // --- 6. PROFILE & POSTING LOGIC ---
+        // --- 7. PROFILE & POSTING LOGIC ---
 
         async function loadUserProfile(uid) {
             try {
@@ -629,9 +677,8 @@
             });
         }
 
-        // --- 7. REAL-TIME CHAT LOGIC ---
+        // --- 8. REAL-TIME CHAT LOGIC ---
 
-        // Helper function to render messages to the UI
         function displayMessage(messageData) {
             const messagesContainer = document.getElementById('chat-messages');
             const messageDiv = document.createElement('div');
@@ -649,34 +696,28 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight; 
         }
 
-        // Starts the chat listener
         async function startChatAndListen(recipientUID) {
             const currentUID = auth.currentUser.uid;
             const participants = [currentUID, recipientUID].sort();
 
-            // 1. Query Firestore for an existing chat document
             const chatQuery = db.collection('chats').where('participants', '==', participants);
             const snapshot = await chatQuery.get();
 
             if (snapshot.empty) {
-                // Chat doesn't exist, create a new one
                 const newChatRef = await db.collection('chats').add({
                     participants: participants,
                     lastMessage: "Chat created."
                 });
                 activeChatId = newChatRef.id;
             } else {
-                // Chat exists
                 activeChatId = snapshot.docs[0].id;
             }
             
-            // 2. Clear old messages and stop old listener
             document.getElementById('chat-messages').innerHTML = '';
             if (unsubscribeFromMessages) {
                 unsubscribeFromMessages();
             }
 
-            // 3. Start the Real-Time Listener on the messages sub-collection
             const messagesRef = db.collection('chats').doc(activeChatId).collection('messages')
                                 .orderBy('timestamp', 'asc');
             
@@ -689,7 +730,6 @@
             });
         }
 
-        // Function called when a chat item is clicked
         function loadChat(recipientName) {
             activeRecipientName = recipientName;
             activeRecipientUID = MOCK_RECIPIENTS[recipientName] || 'DEFAULT_UID'; 
@@ -700,7 +740,6 @@
             startChatAndListen(activeRecipientUID);
         }
 
-        // Function to send a message to Firestore
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
@@ -723,7 +762,6 @@
             });
         }
         
-        // Cleanup function
         function closeChat() {
             document.getElementById('chat-window-modal').style.display = 'none';
             

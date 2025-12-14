@@ -1,32 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Social Media Auth (Modular)</title>
+  <title>Social Media Auth</title>
   <meta charset="UTF-8" />
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
 </head>
 <body>
 
   <h2>Sign Up / Login</h2>
 
+  <!-- Email/password login -->
   <div>
     <h3>Email Sign-up/Login</h3>
-    <input id="email" type="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
+    <input id="email" type="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
     <button onclick="signUpEmail()">Sign Up</button>
     <button onclick="loginEmail()">Login</button>
   </div>
 
   <hr>
 
+  <!-- Phone login -->
   <div>
     <h3>Phone Login</h3>
-    <input id="phoneNumber" type="tel" placeholder="+1234567890">
-    <div id="recaptcha-container"></div> 
+    <input id="phoneNumber" type="tel" placeholder="+1234567890" />
+    <div id="recaptcha-container"></div>
     <button onclick="sendPhoneCode()">Send Code</button><br><br>
 
-    <input id="verificationCode" placeholder="Enter code">
+    <input id="verificationCode" placeholder="Enter code" />
     <button onclick="verifyCode()">Verify Code</button>
   </div>
 
@@ -34,11 +37,11 @@
 
   <button onclick="logout()">Logout</button>
 
-  <p id="status"></p>
+  <p id="status">Not logged in.</p>
 
   <script>
     // Your Firebase config
-    const firebaseConfig = {
+const firebaseConfig = {
       apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0",
       authDomain: "social-media-platform-b3242.firebaseapp.com",
       projectId: "social-media-platform-b3242",
@@ -49,86 +52,77 @@
     };
 
     // Initialize Firebase
-    // NOTE: For compatibility with older namespaced code, you can use the "-compat.js" scripts above.
-    // If you used the non-compat scripts, you would need to use `import { initializeApp } from '...'` syntax
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth(); // Still works with the -compat scripts
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
     // Email sign-up
     function signUpEmail() {
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
-      // Using compat-syntax
       auth.createUserWithEmailAndPassword(email, password)
         .then(userCredential => {
           document.getElementById('status').innerText = "Signed up: " + userCredential.user.email;
         })
-        .catch(e => alert(e.message));
+        .catch(error => alert(error.message));
     }
 
     // Email login
     function loginEmail() {
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
-      // Using compat-syntax
       auth.signInWithEmailAndPassword(email, password)
         .then(userCredential => {
-          document.getElementById('status').innerText = "Logged in: " + userCredential.user.email;
+document.getElementById('status').innerText = "Logged in: " + userCredential.user.email;
         })
-        .catch(e => alert(e.message));
+        .catch(error => alert(error.message));
     }
 
-    // reCAPTCHA
-    // NOTE: This must run after the DOM element is available
+    // reCAPTCHA verifier
     window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
       size: 'normal',
       callback: function(response) {
         console.log('reCAPTCHA passed');
+      },
+      'expired-callback': function() {
+        alert('reCAPTCHA expired, please verify again.');
       }
     });
-    // This will render the reCAPTCHA widget on the page
-    recaptchaVerifier.render(); 
 
-    // Send phone code
+    recaptchaVerifier.render();
+
+    // Send SMS code
     function sendPhoneCode() {
       const phoneNumber = document.getElementById('phoneNumber').value;
       const appVerifier = window.recaptchaVerifier;
 
-      // Using compat-syntax
       auth.signInWithPhoneNumber(phoneNumber, appVerifier)
         .then(confirmationResult => {
           window.confirmationResult = confirmationResult;
-          alert('SMS sent! Now enter the code.');
+          alert('SMS code sent!');
         })
-        .catch(e => alert(e.message));
+        .catch(error => alert(error.message));
     }
 
-    // Verify code
+    // Verify SMS code
     function verifyCode() {
       const code = document.getElementById('verificationCode').value;
-      if (!window.confirmationResult) {
-          alert("Please send a phone code first.");
-          return;
-      }
-      
       window.confirmationResult.confirm(code)
         .then(result => {
           const user = result.user;
-          document.getElementById('status').innerText = "Phone login successful: " + user.phoneNumber;
+document.getElementById('status').innerText = "Phone login successful: " + user.phoneNumber;
         })
-        .catch(e => alert(e.message));
+        .catch(error => alert(error.message));
     }
 
     // Logout
     function logout() {
-      // Using compat-syntax
-      auth.signOut().then(() => {
-        document.getElementById('status').innerText = "Logged out.";
-      }).catch(e => alert(e.message));
+      auth.signOut()
+        .then(() => {
+          document.getElementById('status').innerText = "Logged out.";
+        });
     }
 
-    // Show login status
-    // Using compat-syntax
+    // Listen for auth state changes
     auth.onAuthStateChanged(user => {
       if (user) {
         document.getElementById('status').innerText = "Logged in as: " + (user.email || user.phoneNumber);
@@ -140,4 +134,3 @@
 
 </body>
 </html>
-

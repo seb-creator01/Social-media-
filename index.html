@@ -1,129 +1,130 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Firebase Auth Demo</title>
+  <title>Social Media Auth</title>
+  <meta charset="UTF-8" />
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
 </head>
 <body>
 
-<h2>Sign Up / Login</h2>
+  <h2>Sign Up / Login</h2>
 
-<!-- Email/password -->
-<div>
-  <h3>Email Sign-up/Login</h3>
-  <input id="email" type="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-  <button onclick="signUpEmail()">Sign Up</button>
-  <button onclick="loginEmail()">Login</button>
-</div>
+  <!-- Email/password login -->
+  <div>
+    <h3>Email Sign-up/Login</h3>
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="signUpEmail()">Sign Up</button>
+    <button onclick="loginEmail()">Login</button>
+  </div>
 
-<hr>
+  <hr>
 
-<!-- Phone login -->
-<div>
-  <h3>Phone Login</h3>
-  <input id="phoneNumber" type="tel" placeholder="+1234567890">
-  <div id="recaptcha-container"></div>
-  <button onclick="sendPhoneCode()">Send Code</button><br><br>
+  <!-- Phone login -->
+  <div>
+    <h3>Phone Login</h3>
+    <input id="phoneNumber" type="tel" placeholder="+1234567890">
+    <div id="recaptcha-container"></div>
+    <button onclick="sendPhoneCode()">Send Code</button><br><br>
 
-  <input id="verificationCode" placeholder="Enter code">
-  <button onclick="verifyCode()">Verify Code</button>
-</div>
+    <input id="verificationCode" placeholder="Enter code">
+    <button onclick="verifyCode()">Verify Code</button>
+  </div>
 
-<hr>
+  <hr>
 
-<button onclick="logout()">Logout</button>
+  <button onclick="logout()">Logout</button>
 
-<p id="status"></p>
+  <p id="status"></p>
 
-<script>
-  // Your Firebase config (added here)
-  const firebaseConfig = {
-    apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0",
-    authDomain: "social-media-platform-b3242.firebaseapp.com",
-projectId: "social-media-platform-b3242",
-    storageBucket: "social-media-platform-b3242.firebasestorage.app",
-    messagingSenderId: "85114084944",
-    appId: "1:85114084944:web:b3ef84305bc8c04dabfb55",
-    measurementId: "G-7L2K0ZDT32"
-  };
+  <script>
+    // Your Firebase config
+const firebaseConfig = {
+      apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0",
+      authDomain: "social-media-platform-b3242.firebaseapp.com",
+      projectId: "social-media-platform-b3242",
+      storageBucket: "social-media-platform-b3242.firebasestorage.app",
+      messagingSenderId: "85114084944",
+      appId: "1:85114084944:web:b3ef84305bc8c04dabfb55",
+      measurementId: "G-7L2K0ZDT32"
+    };
 
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
-  // Email signup
-  function signUpEmail() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    auth.createUserWithEmailAndPassword(email, password)
-      .then(user => {
-        document.getElementById('status').innerText = "Signed up: " + user.user.email;
-      })
-      .catch(e => alert(e.message));
-  }
-
-  // Email login
-  function loginEmail() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    auth.signInWithEmailAndPassword(email, password)
-      .then(user => {
-        document.getElementById('status').innerText = "Logged in: " + user.user.email;
-      })
-      .catch(e => alert(e.message));
-  }
-
-  // Setup reCAPTCHA
-  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-    size: 'normal',
-    callback: () => {
-console.log('reCAPTCHA solved');
+    // Email sign-up
+    function signUpEmail() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(user => {
+          document.getElementById('status').innerText = "Signed up: " + user.user.email;
+        })
+        .catch(e => alert(e.message));
     }
-  });
-  recaptchaVerifier.render();
 
-  // Send SMS code
-  function sendPhoneCode() {
-    const phoneNumber = document.getElementById('phoneNumber').value;
-    const appVerifier = window.recaptchaVerifier;
+    // Email login
+    function loginEmail() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      auth.signInWithEmailAndPassword(email, password)
+        .then(user => {
+          document.getElementById('status').innerText = "Logged in: " + user.user.email;
+        })
+.catch(e => alert(e.message));
+    }
 
-    auth.signInWithPhoneNumber(phoneNumber, appVerifier)
-      .then(confirmationResult => {
-        window.confirmationResult = confirmationResult;
-        alert('SMS sent! Enter the code.');
-      })
-      .catch(e => alert(e.message));
-  }
-
-  // Verify SMS code
-  function verifyCode() {
-    const code = document.getElementById('verificationCode').value;
-    window.confirmationResult.confirm(code)
-      .then(result => {
-        const user = result.user;
-        document.getElementById('status').innerText = "Phone auth successful: " + user.phoneNumber;
-      })
-      .catch(e => alert(e.message));
-  }
-
-  // Logout
-  function logout() {
-    auth.signOut().then(() => {
-      document.getElementById('status').innerText = "Logged out.";
+    // reCAPTCHA
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'normal',
+      callback: function(response) {
+        console.log('reCAPTCHA passed');
+      }
     });
-  }
+    recaptchaVerifier.render();
 
-  // Show login status
-  auth.onAuthStateChanged(user => {
-    if (user) {
-      document.getElementById('status').innerText = "Logged in as: " + (user.email || user.phoneNumber);
-    } else {
-      document.getElementById('status').innerText = "Not logged in.";
+    // Send phone code
+    function sendPhoneCode() {
+      const phoneNumber = document.getElementById('phoneNumber').value;
+      const appVerifier = window.recaptchaVerifier;
+
+      auth.signInWithPhoneNumber(phoneNumber, appVerifier)
+        .then(confirmationResult => {
+          window.confirmationResult = confirmationResult;
+          alert('SMS sent!');
+        })
+        .catch(e => alert(e.message));
     }
-  });
-</script>
+
+    // Verify code
+    function verifyCode() {
+      const code = document.getElementById('verificationCode').value;
+      window.confirmationResult.confirm(code)
+        .then(result => {
+          const user = result.user;
+          document.getElementById('status').innerText = "Phone login successful: " + user.phoneNumber;
+        })
+        .catch(e => alert(e.message));
+    }
+
+    // Logout
+    function logout() {
+      auth.signOut().then(() => {
+        document.getElementById('status').innerText = "Logged out.";
+      });
+    }
+
+    // Show login status
+auth.onAuthStateChanged(user => {
+      if (user) {
+        document.getElementById('status').innerText = "Logged in as: " + (user.email || user.phoneNumber);
+      } else {
+        document.getElementById('status').innerText = "Not logged in.";
+      }
+    });
+  </script>
+
 </body>
-</html>
+  </html>

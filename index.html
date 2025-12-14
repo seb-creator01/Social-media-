@@ -368,11 +368,11 @@
                 <input type="password" id="password" placeholder="Password" /><br />
                 <input type="text" id="username" placeholder="Username (for Sign Up)" style="display: none;"/><br />
                 
-                <button class="btn-primary" onclick="handleAuth(true)">Sign Up</button>
-                <button class="btn-secondary" onclick="handleAuth(false)">Login</button>
-
+                <button class="btn-primary" id="signup-btn" onclick="handleAuth(true)">Sign Up</button>
+                <button class="btn-primary" id="login-btn" onclick="handleAuth(false)" style="display:none;">Login</button>
+                
                 <p style="margin-top: 20px; text-align: center;">
-                    <a href="#" onclick="toggleAuthMode()">Switch to Login</a>
+                    <a href="#" onclick="toggleAuthMode()">Already have an account? Switch to Login</a>
                 </p>
             </div>
         </div>
@@ -481,7 +481,6 @@
 
     <script>
         // --- 1. FIREBASE INITIALIZATION AND CONFIG ---
-        // These are the keys you provided. They are public and safe to include here.
         const firebaseConfig = {
             apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0", 
             authDomain: "social-media-platform-b3242.firebaseapp.com",
@@ -514,12 +513,16 @@
         });
 
 
-        // --- 3. UI STATE MANAGEMENT ---
+        // --- 3. UI STATE MANAGEMENT (Login Fix Included) ---
         const authView = document.getElementById('auth-view');
         const appView = document.getElementById('app-view');
         const usernameInput = document.getElementById('username');
         const authError = document.getElementById('auth-error');
-        let isSigningUp = true;
+        
+        // References to the buttons for cleaner control
+        const signupBtn = document.getElementById('signup-btn');
+        const loginBtn = document.getElementById('login-btn');
+        let isSigningUp = true; 
 
         function showView(viewId) {
             authView.style.display = 'none';
@@ -533,25 +536,31 @@
             const link = document.querySelector('#auth-view p a');
             
             if (isSigningUp) {
+                // --- SIGN UP MODE ---
                 document.querySelector('#auth-view h2').innerText = 'Join SociaLink!';
                 link.innerText = 'Already have an account? Switch to Login';
                 usernameInput.style.display = 'block';
-                // Adjusting button visibility based on the simplified HTML structure
-                document.querySelector('#auth-view button:nth-child(5)').innerText = 'Sign Up';
-                document.querySelector('#auth-view button:nth-child(6)').style.display = 'block'; // Login button is visible when ready
+                
+                // Show Sign Up button, hide Login button
+                signupBtn.style.display = 'block';
+                loginBtn.style.display = 'none'; 
+                
             } else {
+                // --- LOGIN MODE ---
                 document.querySelector('#auth-view h2').innerText = 'Welcome Back!';
                 link.innerText = 'Need an account? Switch to Sign Up';
                 usernameInput.style.display = 'none';
-                document.querySelector('#auth-view button:nth-child(5)').innerText = 'Login';
-                document.querySelector('#auth-view button:nth-child(6)').style.display = 'none'; // Sign Up button is hidden when ready
+                
+                // Hide Sign Up button, show Login button
+                signupBtn.style.display = 'none'; 
+                loginBtn.style.display = 'block';
             }
         }
         toggleAuthMode(); // Initialize to Sign Up mode
 
         // --- 4. AUTHENTICATION LOGIC ---
 
-        // Handles both Sign Up and Login based on global state
+        // Handles both Sign Up and Login based on the argument (isSignUpAction)
         async function handleAuth(isSignUpAction) {
             const email = document.getElementById("email").value;
             const password = document.getElementById("password").value;
@@ -560,6 +569,7 @@
             
             try {
                 if (isSignUpAction) {
+                    // Sign Up Logic
                     if (!username || password.length < 6) {
                         authError.innerText = "Please provide a username and a password of at least 6 characters.";
                         return;
@@ -582,10 +592,11 @@
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } else {
-                    // Login
+                    // Login Logic
                     await auth.signInWithEmailAndPassword(email, password);
                 }
             } catch (error) {
+                // Display the error in the UI
                 authError.innerText = `Authentication Error: ${error.message}`;
             }
         }
@@ -670,7 +681,7 @@
 
         // --- 6. CORE APP FEATURES (MOCK/BASIC IMPLEMENTATION) ---
         
-        // Basic Post Creation (Text only, for now)
+        // Basic Post Creation (Text only)
         function createPost() {
             const postText = document.getElementById('post-text').value.trim();
 

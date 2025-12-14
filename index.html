@@ -1,70 +1,534 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Firebase Auth Test</title>
-    <meta charset="UTF-8" />
-    <!-- Firebase App (core) -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SociaLink - A Modern Social Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <!-- Firebase Auth -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  </head>
-  <body>
-    <h2>Login / Sign Up</h2>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <input type="email" id="email" placeholder="Email" /><br />
-    <input type="password" id="password" placeholder="Password" /><br /><br />
-    <button onclick="signUp()">Sign Up</button>
-    <button onclick="logIn()">Login</button>
+    <style>
+        /* --- CSS VARIABLES FOR THEMEING --- */
+        :root {
+            --color-primary: #3b82f6; /* Blue */
+            --color-primary-dark: #2563eb;
+            --color-bg: #f9fafb; /* Light background */
+            --color-text: #1f2937; /* Dark text */
+            --color-card-bg: #ffffff;
+            --color-border: #e5e7eb;
+            --color-danger: #ef4444;
+            --color-success: #10b981;
+            --font-stack: 'Inter', sans-serif;
+        }
 
-    <p id="status">Not logged in</p>
+        /* Dark Mode Toggle */
+        body.dark-mode {
+            --color-bg: #111827; /* Dark background */
+            --color-text: #f9fafb; /* Light text */
+            --color-card-bg: #1f2937;
+            --color-border: #374151;
+        }
+
+        /* --- GLOBAL STYLES --- */
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- HEADER/NAVBAR --- */
+        header {
+            background-color: var(--color-card-bg);
+            border-bottom: 1px solid var(--color-border);
+            padding: 10px 0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+        .nav-links button {
+            margin-left: 10px;
+        }
+
+        /* --- FORMS & BUTTONS --- */
+        .card {
+            background-color: var(--color-card-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 50px auto;
+        }
+        input[type="email"],
+        input[type="password"],
+        input[type="text"],
+        textarea,
+        .input-group {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus {
+            border-color: var(--color-primary);
+            outline: none;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: var(--color-primary-dark);
+        }
+        .btn-secondary {
+            background-color: var(--color-border);
+            color: var(--color-text);
+        }
+        .btn-secondary:hover {
+            opacity: 0.8;
+        }
+        .btn-icon {
+            background: none;
+            border: none;
+            color: var(--color-text);
+            font-size: 1.2rem;
+            padding: 5px;
+        }
+        .btn-icon:hover {
+            color: var(--color-primary);
+        }
+
+        /* --- MAIN CONTENT & POSTS --- */
+        .content-area {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            padding-top: 20px;
+        }
+
+        /* Home Feed/Posts */
+        .post-card {
+            background-color: var(--color-card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--color-border);
+            max-width: 600px;
+            margin: 0 auto 20px;
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .post-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--color-primary);
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+        }
+        .post-username {
+            font-weight: 600;
+        }
+        .post-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            border-top: 1px solid var(--color-border);
+            padding-top: 10px;
+        }
+        .post-actions button {
+            background: none;
+            color: var(--color-text);
+            font-weight: 400;
+        }
+        .post-actions button i {
+            margin-right: 5px;
+        }
+        .post-actions button:hover {
+            color: var(--color-primary);
+        }
+        
+        /* Profile Page Styles */
+        #profile-view {
+            text-align: center;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        .profile-picture-lg {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: var(--color-primary);
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            border: 3px solid var(--color-primary);
+        }
+        .edit-form-group {
+            text-align: left;
+        }
+        .edit-form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+    </style>
+</head>
+<body>
+    <header>
+        <div class="navbar container">
+            <div class="logo">SociaLink</div>
+            <div class="nav-links">
+                <button class="btn-icon" id="theme-toggle" onclick="toggleDarkMode()">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <div id="auth-controls">
+                    </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="auth-view" class="view">
+            <div class="card">
+                <h2>Welcome Back!</h2>
+                <div id="auth-error" style="color: var(--color-danger); margin-bottom: 10px;"></div>
+                
+                <input type="email" id="email" placeholder="Email" /><br />
+                <input type="password" id="password" placeholder="Password" /><br />
+                <input type="text" id="username" placeholder="Username (for Sign Up)" style="display: none;"/><br />
+                
+                <button class="btn-primary" onclick="handleAuth(true)">Sign Up</button>
+                <button class="btn-secondary" onclick="handleAuth(false)">Login</button>
+
+                <p style="margin-top: 20px; text-align: center;">
+                    <a href="#" onclick="toggleAuthMode()">Switch to Login</a>
+                </p>
+            </div>
+        </div>
+
+        <div id="app-view" class="view" style="display: none;">
+            <div class="content-area">
+                <div class="feed-column">
+                    <div class="card" style="margin: 0 0 20px 0;">
+                        <h4>What's on your mind, <span id="current-user-name"></span>?</h4>
+                        <textarea id="post-text" placeholder="Share a thought..." rows="3"></textarea>
+                        <input type="file" id="post-media" accept="image/*,video/*" style="margin-bottom: 10px;">
+                        <button class="btn-primary" onclick="createPost()">Post</button>
+                    </div>
+
+                    <h3 style="margin-top: 30px;">Home Feed (Mock Data)</h3>
+                    <div class="post-card">
+                        <div class="post-header">
+                            <div class="post-avatar">A</div>
+                            <div class="post-info">
+                                <span class="post-username">Alex_The_Dev</span>
+                                <div style="font-size: 0.8rem; color: #6b7280;">1h ago</div>
+                            </div>
+                        </div>
+                        <p>Starting the foundation for my new social media app! Firebase is making the backend incredibly fast to set up. #Serverless #Coding</p>
+                        <div class="post-actions">
+                            <button><i class="far fa-heart"></i> Like (12)</button>
+                            <button><i class="far fa-comment"></i> Comment (4)</button>
+                            <button><i class="fas fa-share"></i> Share</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="profile-view" class="card" style="max-width: none; margin: 0;">
+                    <h3>My Profile</h3>
+                    <div class="profile-picture-lg" id="profile-initials">J</div>
+                    <h2 id="profile-display-name">Loading...</h2>
+                    <p id="profile-email" style="color: #6b7280;"></p>
+                    <p id="profile-bio">Bio: Tell us about yourself! (Click Edit Profile)</p>
+                    
+                    <button class="btn-secondary" onclick="toggleEditProfile(true)">Edit Profile</button>
+
+                    <div id="profile-edit-form" style="display: none; margin-top: 20px;" class="edit-form-group">
+                        <hr style="margin: 20px 0; border-color: var(--color-border);">
+                        <h4>Edit Details</h4>
+                        <label for="edit-name">Display Name</label>
+                        <input type="text" id="edit-name">
+                        <label for="edit-bio">Bio</label>
+                        <textarea id="edit-bio" rows="3"></textarea>
+                        <button class="btn-primary" onclick="updateProfile()">Save Changes</button>
+                        <button class="btn-secondary" onclick="toggleEditProfile(false)">Cancel</button>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button class="btn-primary" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
     <script>
-      // Firebase config
-      var firebaseConfig = {
-        apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0",
-        authDomain: "social-media-platform-b3242.firebaseapp.com",
-        projectId: "social-media-platform-b3242",
-storageBucket: "social-media-platform-b3242.appspot.com",
-        messagingSenderId: "85114084944",
-        appId: "1:85114084944:web:b3ef84305bc8c04dabfb55",
-        measurementId: "G-7L2K0ZDT32"
-      };
+        // --- 1. FIREBASE INITIALIZATION AND CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0", // Use your REAL key here
+            authDomain: "social-media-platform-b3242.firebaseapp.com",
+            projectId: "social-media-platform-b3242",
+            // ... rest of your config
+        };
 
-      // Initialize Firebase
-      firebase.initializeApp(firebaseConfig);
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = app.auth();
+        const db = app.firestore();
+        
+        // --- 2. THEME SWITCHER ---
+        const themeToggle = document.getElementById('theme-toggle');
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeToggle.innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+        }
 
-      // Sign Up
-      function signUp() {
-        var email = document.getElementById("email").value;
-        var password = document.getElementById("password").value;
-        firebase
-          .auth()
-          .createUserWithEmailAndPassword(email, password)
-          .then((userCredential) => {
-            document.getElementById("status").innerText =
-              "Signed up as: " + userCredential.user.email;
-          })
-          .catch((error) => {
-            alert(error.message);
-          });
-      }
+        // Apply theme from local storage on load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('theme') === 'dark') {
+                toggleDarkMode(); // Calls the function to switch to dark and update icon
+            }
+        });
 
-      // Login
-      function logIn() {
-        var email = document.getElementById("email").value;
-        var password = document.getElementById("password").value;
-        firebase
-          .auth()
-          .signInWithEmailAndPassword(email, password)
-          .then((userCredential) => {
-            document.getElementById("status").innerText =
-              "Logged in as: " + userCredential.user.email;
-          })
-          .catch((error) => {
-            alert(error.message);
-});
-      }
+
+        // --- 3. UI STATE MANAGEMENT ---
+        const authView = document.getElementById('auth-view');
+        const appView = document.getElementById('app-view');
+        const usernameInput = document.getElementById('username');
+        const authError = document.getElementById('auth-error');
+        let isSigningUp = true;
+
+        function showView(viewId) {
+            authView.style.display = 'none';
+            appView.style.display = 'none';
+            document.getElementById(viewId).style.display = 'block';
+        }
+        
+        // Toggles between Sign Up and Login Forms
+        function toggleAuthMode() {
+            isSigningUp = !isSigningUp;
+            const link = document.querySelector('#auth-view p a');
+            
+            if (isSigningUp) {
+                document.querySelector('#auth-view h2').innerText = 'Join SociaLink!';
+                link.innerText = 'Already have an account? Switch to Login';
+                usernameInput.style.display = 'block';
+                document.querySelectorAll('#auth-view button')[0].innerText = 'Sign Up';
+                document.querySelectorAll('#auth-view button')[1].style.display = 'none';
+                document.querySelector('#auth-view button:nth-child(2)').style.display = 'block';
+            } else {
+                document.querySelector('#auth-view h2').innerText = 'Welcome Back!';
+                link.innerText = 'Need an account? Switch to Sign Up';
+                usernameInput.style.display = 'none';
+                document.querySelectorAll('#auth-view button')[0].innerText = 'Sign Up'; // Keep button label
+                document.querySelectorAll('#auth-view button')[1].style.display = 'block';
+            }
+        }
+        toggleAuthMode(); // Initialize to Sign Up mode
+
+        // --- 4. AUTHENTICATION LOGIC (FROM YOUR CODE, MODIFIED) ---
+
+        // Handles both Sign Up and Login based on global state
+        async function handleAuth(isSignUpAction) {
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const username = document.getElementById("username").value;
+            authError.innerText = '';
+            
+            try {
+                if (isSignUpAction) {
+                    if (!username || password.length < 6) {
+                        authError.innerText = "Please provide a username and a password of at least 6 characters.";
+                        return;
+                    }
+
+                    // 1. Create user in Firebase Auth
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    const user = userCredential.user;
+
+                    // 2. Set display name in Auth
+                    await user.updateProfile({ displayName: username });
+
+                    // 3. Create user document in Firestore
+                    await db.collection('users').doc(user.uid).set({
+                        displayName: username,
+                        email: user.email,
+                        bio: `Hey there! I'm new to SociaLink.`,
+                        followersCount: 0,
+                        followingCount: 0,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    // Login
+                    await auth.signInWithEmailAndPassword(email, password);
+                }
+            } catch (error) {
+                authError.innerText = `Authentication Error: ${error.message}`;
+            }
+        }
+
+        function logout() {
+            auth.signOut().then(() => {
+                showView('auth-view');
+            }).catch(error => {
+                alert("Logout Error: " + error.message);
+            });
+        }
+
+        // --- 5. AUTH STATE LISTENER & PROFILE MANAGEMENT ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // User is signed in
+                showView('app-view');
+                loadUserProfile(user.uid);
+            } else {
+                // User is signed out
+                showView('auth-view');
+            }
+        });
+
+        // Loads profile data from Firestore
+        async function loadUserProfile(uid) {
+            try {
+                const doc = await db.collection('users').doc(uid).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    const displayName = data.displayName || 'User';
+                    const initial = displayName.charAt(0).toUpperCase();
+
+                    document.getElementById('current-user-name').innerText = displayName;
+                    document.getElementById('profile-display-name').innerText = displayName;
+                    document.getElementById('profile-email').innerText = auth.currentUser.email;
+                    document.getElementById('profile-bio').innerText = `Bio: ${data.bio}`;
+                    document.getElementById('profile-initials').innerText = initial;
+
+                    // Load edit form fields
+                    document.getElementById('edit-name').value = displayName;
+                    document.getElementById('edit-bio').value = data.bio;
+
+                }
+            } catch (error) {
+                console.error("Error fetching user profile:", error);
+            }
+        }
+
+        function toggleEditProfile(show) {
+            document.getElementById('profile-edit-form').style.display = show ? 'block' : 'none';
+        }
+
+        // Updates profile data in Firestore
+        async function updateProfile() {
+            const uid = auth.currentUser.uid;
+            const newName = document.getElementById('edit-name').value.trim();
+            const newBio = document.getElementById('edit-bio').value.trim();
+
+            if (!newName) {
+                alert("Display Name cannot be empty.");
+                return;
+            }
+
+            try {
+                // 1. Update Firestore Document
+                await db.collection('users').doc(uid).update({
+                    displayName: newName,
+                    bio: newBio
+                });
+
+                // 2. Update Auth profile (optional, but good practice)
+                await auth.currentUser.updateProfile({ displayName: newName });
+                
+                alert("Profile updated successfully!");
+                toggleEditProfile(false);
+                loadUserProfile(uid); // Refresh the UI
+            } catch (error) {
+                alert("Error updating profile: " + error.message);
+            }
+        }
+
+        // --- 6. CORE APP FEATURES (MOCK/BASIC IMPLEMENTATION) ---
+        
+        // Basic Post Creation (Text only, for now)
+        function createPost() {
+            const postText = document.getElementById('post-text').value.trim();
+            // Note: Media upload (images/videos) requires Firebase Storage, which is not fully implemented here.
+            // This function only handles the text and stores it in a 'posts' collection.
+
+            if (!postText) {
+                alert("Post content cannot be empty.");
+                return;
+            }
+
+            const uid = auth.currentUser.uid;
+            const displayName = auth.currentUser.displayName || 'Anonymous';
+
+            db.collection('posts').add({
+                userId: uid,
+                displayName: displayName,
+                content: postText,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                likesCount: 0,
+                commentsCount: 0
+            })
+            .then(() => {
+                alert("Post created successfully! Check your Firestore console.");
+                document.getElementById('post-text').value = ''; // Clear text
+            })
+            .catch(error => {
+                alert("Error creating post: " + error.message);
+            });
+        }
+
+        // The remaining features (Chat, Voice/Video, Notifications, Admin, Monetization)
+        // require significantly more code (Cloud Functions, Realtime DB, third-party APIs)
+        // and cannot be reasonably included in a single HTML file foundation.
+
     </script>
-  </body>
+</body>
 </html>
 

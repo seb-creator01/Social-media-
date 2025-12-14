@@ -203,7 +203,8 @@
             font-weight: 400;
             padding: 8px 0;
         }
-        /* --- Notification Styles (Badge stays in drawer now) --- */
+        
+        /* --- POST & PROFILE STYLES --- */
         .post-avatar {
             width: 40px;
             height: 40px;
@@ -216,22 +217,41 @@
             color: white;
             font-weight: 700;
         }
-        .notification-dropdown {
-            display: none; 
-            position: absolute;
-            top: 100px; /* Adjusted position for hidden element, not used with drawer */
-            right: 20px;
-            width: 300px;
+        .post-card {
             background-color: var(--color-card-bg);
-            border: 1px solid var(--color-border);
+            padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 200; 
-            padding: 15px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--color-border);
+            max-width: 600px;
+            width: 100%;
+            margin: 0 0 20px 0;
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .feed-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .profile-picture-lg {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: var(--color-primary);
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            border: 3px solid var(--color-primary);
         }
         
         /* --- CHAT STYLES --- */
-        /* ... (Keep existing chat styles) ... */
         #chat-window-modal {
             position: fixed;
             bottom: 0;
@@ -239,6 +259,35 @@
             width: 350px;
             height: 450px;
             z-index: 1000;
+        }
+        .chat-window-card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--color-card-bg);
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+            border: 1px solid var(--color-border);
+        }
+        .chat-messages-container {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid var(--color-border);
+        }
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 18px;
+            line-height: 1.4;
+            font-size: 0.95rem;
         }
         .message.sent {
             background-color: var(--color-primary);
@@ -348,23 +397,9 @@
                     <button class="btn-primary" onclick="createPost()">Post</button>
                 </div>
 
-                <h3 style="margin-top: 30px; align-self: flex-start; margin-left: auto; margin-right: auto; max-width: 600px; width: 100%;">Home Feed (Mock Data)</h3>
-                <div class="post-card">
-                    <div class="post-header">
-                        <div class="post-avatar">A</div>
-                        <div class="post-info">
-                            <span class="post-username">Alex_The_Dev</span>
-                            <div style="font-size: 0.8rem; color: #6b7280;">1h ago</div>
-                        </div>
-                    </div>
-                    <p>Starting the foundation for my new social media app! Firebase is making the backend incredibly fast to set up. #Serverless #Coding</p>
-                    <div class="post-actions">
-                        <button><i class="far fa-heart"></i> Like (12)</button>
-                        <button><i class="far fa-comment"></i> Comment (4)</button>
-                        <button><i class="fas fa-share"></i> Share</button>
-                    </div>
+                <h3 style="margin-top: 30px; align-self: flex-start; margin-left: auto; margin-right: auto; max-width: 600px; width: 100%;">Home Feed</h3>
+                
                 </div>
-            </div>
         </div>
 
         <div id="profile-page-view" class="view page-content" style="display: none;">
@@ -458,6 +493,7 @@
         let activeRecipientName = null;
         let activeRecipientUID = null;
         let unsubscribeFromMessages = null; 
+        let unsubscribeFromFeed = null; 
         
         const authView = document.getElementById('auth-view');
         const usernameInput = document.getElementById('username');
@@ -494,7 +530,9 @@
             // Update icons for both toggles
             const iconClass = isDark ? 'fas fa-sun' : 'fas fa-moon';
             themeToggle.innerHTML = `<i class="${iconClass}"></i>`;
-            drawerThemeToggle.innerHTML = `<i class="${iconClass}"></i> Dark Mode`;
+            if (drawerThemeToggle) {
+                drawerThemeToggle.innerHTML = `<i class="${iconClass}"></i> Dark Mode`;
+            }
         }
         
         document.addEventListener('DOMContentLoaded', () => {
@@ -502,14 +540,18 @@
                 document.body.classList.add('dark-mode');
             }
             // Initialize icon states based on theme
-            toggleDarkMode(); // Call once to set correct icons without toggling the theme
-            toggleDarkMode(); // Call a second time to revert back to the loaded state and update icons
+            if (themeToggle) {
+                toggleDarkMode(); 
+                toggleDarkMode(); 
+            }
         });
         
         // Event listener for Settings & Support toggle
-        settingsToggle.addEventListener('click', () => {
-            settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
-        });
+        if (settingsToggle) {
+            settingsToggle.addEventListener('click', () => {
+                settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
+            });
+        }
 
 
         // --- 4. SPA NAVIGATION & DRAWER CONTROL ---
@@ -532,7 +574,6 @@
             }
         }
         
-        // Navigates to a view and closes the drawer
         function navigateAndClose(viewId) {
             showView(viewId);
             toggleSideDrawer(false);
@@ -580,8 +621,8 @@
                         displayName: username,
                         email: user.email,
                         bio: `Hey there! I'm new to SociaLink.`,
-                        followersCount: 13, // Mock data
-                        followingCount: 23,  // Mock data
+                        followersCount: 13, 
+                        followingCount: 23, 
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } else {
@@ -595,7 +636,12 @@
         function logout() {
             auth.signOut().then(() => {
                 showView('auth-view');
-                drawerToggleArea.style.display = 'none'; // Hide drawer toggle
+                drawerToggleArea.style.display = 'none'; 
+                // STOP listening to the feed when user logs out
+                if (unsubscribeFromFeed) {
+                    unsubscribeFromFeed();
+                    unsubscribeFromFeed = null;
+                }
             }).catch(error => {
                 alert("Logout Error: " + error.message);
             });
@@ -632,14 +678,23 @@
                 drawerToggleArea.style.display = 'block';
                 showView('home-view');
                 loadDrawerProfile(user.uid);
+                
+                // START the feed listener when the user is authenticated
+                loadFeed(); 
             } else {
                 drawerToggleArea.style.display = 'none';
                 showView('auth-view');
+                
+                // STOP listening to the feed when user logs out
+                if (unsubscribeFromFeed) {
+                    unsubscribeFromFeed();
+                    unsubscribeFromFeed = null;
+                }
             }
         });
 
-        // --- 6. PROFILE & POSTING LOGIC (Simplified to avoid repetition) ---
-        // (The updateProfile and createPost functions remain the same as before)
+        // --- 6. PROFILE & POSTING LOGIC ---
+        
         function toggleEditProfile(show) {
             document.getElementById('profile-edit-form').style.display = show ? 'block' : 'none';
         }
@@ -663,7 +718,7 @@
                 
                 alert("Profile updated successfully!");
                 toggleEditProfile(false);
-                loadDrawerProfile(uid); // Refresh profile data
+                loadDrawerProfile(uid); 
             } catch (error) {
                 alert("Error updating profile: " + error.message);
             }
@@ -687,15 +742,89 @@
                 commentsCount: 0
             })
             .then(() => {
-                alert("Post created successfully! Check your Firestore console.");
                 document.getElementById('post-text').value = '';
             })
             .catch(error => {
                 alert("Error creating post: " + error.message);
             });
         }
+        
+        // --- 7. DYNAMIC HOME FEED LOGIC ---
 
-        // --- 7. REAL-TIME CHAT LOGIC (Kept same as before) ---
+        // Function to render a single post HTML
+        function renderPost(post) {
+            const postElement = document.createElement('div');
+            postElement.classList.add('post-card');
+            postElement.innerHTML = `
+                <div class="post-header">
+                    <div class="post-avatar">${post.displayName.charAt(0).toUpperCase()}</div>
+                    <div class="post-info">
+                        <span class="post-username">${post.displayName}</span>
+                        <div style="font-size: 0.8rem; color: #6b7280;">${post.timestamp ? new Date(post.timestamp.toDate()).toLocaleTimeString() : 'Just now'}</div>
+                    </div>
+                </div>
+                <p>${post.content}</p>
+                <div class="post-actions">
+                    <button><i class="far fa-heart"></i> Like (${post.likesCount || 0})</button>
+                    <button><i class="far fa-comment"></i> Comment (${post.commentsCount || 0})</button>
+                    <button><i class="fas fa-share"></i> Share</button>
+                </div>
+            `;
+            return postElement;
+        }
+
+        // Function to set up the real-time feed listener
+        function loadFeed() {
+            if (unsubscribeFromFeed) {
+                unsubscribeFromFeed();
+            }
+            
+            const feedContainer = document.querySelector('.feed-column');
+            // Clear previous real posts (Keep the H3 and Post Creation Card)
+            feedContainer.querySelectorAll('.post-card').forEach(card => {
+                if (!card.closest('.card')) { 
+                    card.remove(); 
+                }
+            });
+            
+            const postsRef = db.collection('posts').orderBy('timestamp', 'desc').limit(20);
+            
+            unsubscribeFromFeed = postsRef.onSnapshot(snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    const postData = change.doc.data();
+                    const postId = change.doc.id;
+                    
+                    const existingPostElement = document.getElementById(`post-${postId}`);
+                    
+                    if (change.type === "added") {
+                        if (!existingPostElement) {
+                            const newPost = renderPost(postData);
+                            newPost.setAttribute('id', `post-${postId}`);
+                            
+                            // Insert the new post right after the "Post Creation Card"
+                            const postCardCreation = document.querySelector('.feed-column > .card');
+                            const h3 = document.querySelector('.feed-column > h3');
+                            
+                            // If inserting the very first post, use the H3 as reference. Otherwise, use the post creation card.
+                            const insertionPoint = postCardCreation.nextSibling || h3.nextSibling;
+                            feedContainer.insertBefore(newPost, insertionPoint);
+                        }
+                    } else if (change.type === "modified") {
+                        if (existingPostElement) {
+                            existingPostElement.innerHTML = renderPost(postData).innerHTML;
+                        }
+                    } else if (change.type === "removed") {
+                        if (existingPostElement) {
+                            existingPostElement.remove();
+                        }
+                    }
+                });
+            }, error => {
+                console.error("Error loading feed: ", error);
+            });
+        }
+
+        // --- 8. REAL-TIME CHAT LOGIC ---
 
         function displayMessage(messageData) {
             const messagesContainer = document.getElementById('chat-messages');
@@ -716,6 +845,7 @@
         async function startChatAndListen(recipientUID) {
             const currentUID = auth.currentUser.uid;
             const participants = [currentUID, recipientUID].sort();
+
             const chatQuery = db.collection('chats').where('participants', '==', participants);
             const snapshot = await chatQuery.get();
 

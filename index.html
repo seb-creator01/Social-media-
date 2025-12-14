@@ -14,21 +14,20 @@
     <style>
         /* --- CSS VARIABLES FOR THEMEING --- */
         :root {
-            --color-primary: #3b82f6; /* Blue */
+            --color-primary: #3b82f6;
             --color-primary-dark: #2563eb;
-            --color-bg: #f9fafb; /* Light background */
-            --color-text: #1f2937; /* Dark text */
+            --color-bg: #f9fafb;
+            --color-text: #1f2937;
             --color-card-bg: #ffffff;
             --color-border: #e5e7eb;
             --color-danger: #ef4444;
-            --color-success: #10b981;
             --font-stack: 'Inter', sans-serif;
         }
 
         /* Dark Mode Toggle */
         body.dark-mode {
-            --color-bg: #111827; /* Dark background */
-            --color-text: #f9fafb; /* Light text */
+            --color-bg: #111827;
+            --color-text: #f9fafb;
             --color-card-bg: #1f2937;
             --color-border: #374151;
         }
@@ -58,7 +57,7 @@
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
             position: sticky;
             top: 0;
-            z-index: 50; /* Ensure navbar stays above content */
+            z-index: 50;
         }
         .navbar {
             display: flex;
@@ -90,7 +89,7 @@
         /* Auth View specific centering */
         #auth-view .card {
             max-width: 400px;
-            margin: 10vh auto; /* Center vertically on auth screen */
+            margin: 10vh auto;
         }
         input[type="email"],
         input[type="password"],
@@ -106,10 +105,6 @@
             color: var(--color-text);
             transition: border-color 0.2s;
         }
-        input:focus, textarea:focus {
-            border-color: var(--color-primary);
-            outline: none;
-        }
         button {
             padding: 10px 20px;
             border: none;
@@ -122,9 +117,6 @@
             background-color: var(--color-primary);
             color: white;
         }
-        .btn-primary:hover {
-            background-color: var(--color-primary-dark);
-        }
         .btn-icon {
             background: none;
             border: none;
@@ -132,10 +124,7 @@
             font-size: 1.0rem;
             padding: 5px 10px;
         }
-        .btn-icon:hover {
-            color: var(--color-primary);
-        }
-
+        
         /* --- PAGE CONTENT --- */
         .page-content {
             padding-top: 20px;
@@ -191,14 +180,8 @@
             font-size: 2rem;
             border: 3px solid var(--color-primary);
         }
-        .edit-form-group {
-            text-align: left;
-        }
         
         /* --- CHAT STYLES --- */
-        .chat-list {
-            margin-top: 10px;
-        }
         .chat-item {
             display: flex;
             align-items: center;
@@ -215,14 +198,7 @@
             flex-grow: 1;
             overflow: hidden;
         }
-        .chat-username {
-            font-weight: 600;
-        }
-        .last-message {
-            font-size: 0.8rem;
-            color: #6b7280;
-        }
-        /* Chat Window Modal Styles (fixed position for floating chat) */
+        /* Chat Window Modal Styles */
         #chat-window-modal {
             position: fixed;
             bottom: 0;
@@ -241,10 +217,38 @@
             border: 1px solid var(--color-border);
         }
         .chat-header-bar {
-            /* ... (Styles are already present in the previous version) ... */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--color-border);
+            font-weight: 600;
         }
         .chat-messages-container {
-            /* ... (Styles are already present in the previous version) ... */
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid var(--color-border);
+        }
+        .chat-input-area input {
+            flex-grow: 1;
+            margin-bottom: 0;
+            margin-right: 10px;
+        }
+        /* Message Bubble Styles */
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 18px;
+            line-height: 1.4;
+            font-size: 0.95rem;
         }
         .message.sent {
             background-color: var(--color-primary);
@@ -356,7 +360,7 @@
             <div id="chat-list-container" class="card" style="max-width: 500px; margin: 0 auto; padding: 20px;">
                 <h3>Active Chats <i class="fas fa-comment-dots"></i></h3>
                 <div class="chat-list">
-                    <div class="chat-item" onclick="openChat('Alex_The_Dev')">
+                    <div class="chat-item" onclick="loadChat('Alex_The_Dev')">
                         <div class="post-avatar">A</div>
                         <div class="chat-info">
                             <span class="chat-username">Alex_The_Dev</span>
@@ -364,7 +368,7 @@
                         </div>
                         <span class="chat-time">2m</span>
                     </div>
-                    <div class="chat-item" onclick="openChat('Marketing_Mgr')">
+                    <div class="chat-item" onclick="loadChat('Marketing_Mgr')">
                         <div class="post-avatar" style="background-color: #f59e0b;">M</div>
                         <div class="chat-info">
                             <span class="chat-username">Marketing_Mgr</span>
@@ -372,7 +376,7 @@
                         </div>
                         <span class="chat-time">1h</span>
                     </div>
-                    <p style="margin-top: 20px; font-size: 0.9em; color: #6b7280;">(Click a chat to open the floating window)</p>
+                    <p style="margin-top: 20px; font-size: 0.9em; color: #6b7280;">(These are mock users, click to start real-time chat)</p>
                 </div>
             </div>
         </div>
@@ -387,10 +391,7 @@
                 </div>
                 
                 <div id="chat-messages" class="chat-messages-container">
-                    <div class="message received">Hey, welcome to SociaLink!</div>
-                    <div class="message sent">Thanks! The UI looks great.</div>
-                    <div class="message received">We should connect this to the real-time Firebase backend soon!</div>
-                </div>
+                    </div>
                 
                 <div class="chat-input-area">
                     <input type="text" id="chat-input" placeholder="Type a message..." />
@@ -417,7 +418,31 @@
         const auth = app.auth();
         const db = app.firestore();
         
-        // --- 2. THEME SWITCHER ---
+        // --- 2. GLOBAL STATE & UI REFERENCES ---
+        let isSigningUp = true; 
+        let activeChatId = null; 
+        let activeRecipientName = null;
+        let activeRecipientUID = null;
+        let unsubscribeFromMessages = null; // Listener cleanup variable
+        
+        const authView = document.getElementById('auth-view');
+        const usernameInput = document.getElementById('username');
+        const authError = document.getElementById('auth-error');
+        const signupBtn = document.getElementById('signup-btn');
+        const loginBtn = document.getElementById('login-btn');
+        const appNav = document.getElementById('app-nav');
+        
+        const homeView = document.getElementById('home-view');
+        const profilePageView = document.getElementById('profile-page-view');
+        const chatPageView = document.getElementById('chat-page-view');
+        
+        // MOCK UIDs for chat demonstration (Replace with real UIDs in a finished app)
+        const MOCK_RECIPIENTS = {
+            'Alex_The_Dev': 'ALEX-DEV-UID-12345', 
+            'Marketing_Mgr': 'MARKETING-MGR-UID-67890'
+        };
+
+        // --- 3. THEME SWITCHER ---
         const themeToggle = document.getElementById('theme-toggle');
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
@@ -425,8 +450,6 @@
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeToggle.innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
         }
-
-        // Apply theme from local storage on load
         document.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('theme') === 'dark') {
                 document.body.classList.add('dark-mode');
@@ -435,30 +458,14 @@
         });
 
 
-        // --- 3. UI STATE MANAGEMENT (SPA NAVIGATION) ---
-        const authView = document.getElementById('auth-view');
-        const usernameInput = document.getElementById('username');
-        const authError = document.getElementById('auth-error');
-        const signupBtn = document.getElementById('signup-btn');
-        const loginBtn = document.getElementById('login-btn');
-        const appNav = document.getElementById('app-nav');
+        // --- 4. SPA NAVIGATION & AUTH UI CONTROL ---
         
-        // References to all page views
-        const homeView = document.getElementById('home-view');
-        const profilePageView = document.getElementById('profile-page-view');
-        const chatPageView = document.getElementById('chat-page-view');
-        
-        let isSigningUp = true; 
-
         // Function to hide all views and show only the requested one
         function showView(viewId) {
-            // Hide all content containers
             authView.style.display = 'none';
             homeView.style.display = 'none';
             profilePageView.style.display = 'none';
             chatPageView.style.display = 'none';
-
-            // Show the requested container
             document.getElementById(viewId).style.display = 'block';
         }
         
@@ -468,15 +475,12 @@
             const link = document.querySelector('#auth-view p a');
             
             if (isSigningUp) {
-                // --- SIGN UP MODE ---
                 document.querySelector('#auth-view h2').innerText = 'Join SociaLink!';
                 link.innerText = 'Already have an account? Switch to Login';
                 usernameInput.style.display = 'block';
                 signupBtn.style.display = 'block';
                 loginBtn.style.display = 'none'; 
-                
             } else {
-                // --- LOGIN MODE ---
                 document.querySelector('#auth-view h2').innerText = 'Welcome Back!';
                 link.innerText = 'Need an account? Switch to Sign Up';
                 usernameInput.style.display = 'none';
@@ -486,7 +490,8 @@
         }
         toggleAuthMode(); // Initialize to Sign Up mode
 
-        // --- 4. AUTHENTICATION LOGIC ---
+
+        // --- 5. AUTHENTICATION LOGIC ---
 
         async function handleAuth(isSignUpAction) {
             const email = document.getElementById("email").value;
@@ -500,12 +505,12 @@
                         authError.innerText = "Please provide a username and a password of at least 6 characters.";
                         return;
                     }
-
                     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                     const user = userCredential.user;
 
                     await user.updateProfile({ displayName: username });
 
+                    // Create user document in Firestore
                     await db.collection('users').doc(user.uid).set({
                         displayName: username,
                         email: user.email,
@@ -525,25 +530,25 @@
         function logout() {
             auth.signOut().then(() => {
                 showView('auth-view');
-                appNav.style.display = 'none'; // Hide app navigation
+                appNav.style.display = 'none';
             }).catch(error => {
                 alert("Logout Error: " + error.message);
             });
         }
 
-        // --- 5. AUTH STATE LISTENER & PROFILE MANAGEMENT ---
+        // Auth state listener and initial app loader
         auth.onAuthStateChanged(user => {
             if (user) {
-                // User is signed in: show the Home view and the app navigation
-                appNav.style.display = 'flex'; // Show app navigation
+                appNav.style.display = 'flex';
                 showView('home-view');
                 loadUserProfile(user.uid);
             } else {
-                // User is signed out: show the Auth view and hide the app navigation
                 appNav.style.display = 'none';
                 showView('auth-view');
             }
         });
+
+        // --- 6. PROFILE & POSTING LOGIC ---
 
         async function loadUserProfile(uid) {
             try {
@@ -586,7 +591,6 @@
                     displayName: newName,
                     bio: newBio
                 });
-
                 await auth.currentUser.updateProfile({ displayName: newName });
                 
                 alert("Profile updated successfully!");
@@ -596,8 +600,6 @@
                 alert("Error updating profile: " + error.message);
             }
         }
-
-        // --- 6. CORE APP FEATURES (POSTING) ---
         
         function createPost() {
             const postText = document.getElementById('post-text').value.trim();
@@ -627,31 +629,110 @@
             });
         }
 
-        // --- 7. CHAT UI MANAGEMENT (MOCK) ---
+        // --- 7. REAL-TIME CHAT LOGIC ---
 
-        function openChat(recipientName) {
+        // Helper function to render messages to the UI
+        function displayMessage(messageData) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            
+            if (messageData.senderId === auth.currentUser.uid) {
+                messageDiv.classList.add('sent');
+            } else {
+                messageDiv.classList.add('received');
+            }
+            
+            messageDiv.innerText = messageData.content;
+            messagesContainer.appendChild(messageDiv);
+            
+            messagesContainer.scrollTop = messagesContainer.scrollHeight; 
+        }
+
+        // Starts the chat listener
+        async function startChatAndListen(recipientUID) {
+            const currentUID = auth.currentUser.uid;
+            const participants = [currentUID, recipientUID].sort();
+
+            // 1. Query Firestore for an existing chat document
+            const chatQuery = db.collection('chats').where('participants', '==', participants);
+            const snapshot = await chatQuery.get();
+
+            if (snapshot.empty) {
+                // Chat doesn't exist, create a new one
+                const newChatRef = await db.collection('chats').add({
+                    participants: participants,
+                    lastMessage: "Chat created."
+                });
+                activeChatId = newChatRef.id;
+            } else {
+                // Chat exists
+                activeChatId = snapshot.docs[0].id;
+            }
+            
+            // 2. Clear old messages and stop old listener
+            document.getElementById('chat-messages').innerHTML = '';
+            if (unsubscribeFromMessages) {
+                unsubscribeFromMessages();
+            }
+
+            // 3. Start the Real-Time Listener on the messages sub-collection
+            const messagesRef = db.collection('chats').doc(activeChatId).collection('messages')
+                                .orderBy('timestamp', 'asc');
+            
+            unsubscribeFromMessages = messagesRef.onSnapshot(snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === "added") {
+                        displayMessage(change.doc.data());
+                    }
+                });
+            });
+        }
+
+        // Function called when a chat item is clicked
+        function loadChat(recipientName) {
+            activeRecipientName = recipientName;
+            activeRecipientUID = MOCK_RECIPIENTS[recipientName] || 'DEFAULT_UID'; 
+            
             document.getElementById('chat-recipient-name').innerText = recipientName;
             document.getElementById('chat-window-modal').style.display = 'block';
+
+            startChatAndListen(activeRecipientUID);
         }
 
-        function closeChat() {
-            document.getElementById('chat-window-modal').style.display = 'none';
-        }
-
+        // Function to send a message to Firestore
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
-            const messagesContainer = document.getElementById('chat-messages');
 
-            if (text) {
-                const messageDiv = document.createElement('div');
-                messageDiv.classList.add('message', 'sent');
-                messageDiv.innerText = text;
-                
-                messagesContainer.appendChild(messageDiv);
-                input.value = '';
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            if (!text || !activeChatId) {
+                return;
             }
+
+            db.collection('chats').doc(activeChatId).collection('messages').add({
+                senderId: auth.currentUser.uid,
+                content: text,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then(() => {
+                input.value = '';
+            })
+            .catch(error => {
+                console.error("Error sending message:", error);
+                alert("Error sending message. Check Firebase Security Rules.");
+            });
+        }
+        
+        // Cleanup function
+        function closeChat() {
+            document.getElementById('chat-window-modal').style.display = 'none';
+            
+            if (unsubscribeFromMessages) {
+                unsubscribeFromMessages();
+                unsubscribeFromMessages = null;
+            }
+            activeChatId = null;
+            document.getElementById('chat-messages').innerHTML = ''; 
         }
     </script>
 </body>

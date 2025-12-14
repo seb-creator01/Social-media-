@@ -22,37 +22,22 @@
 
   <hr>
 
-  <!-- Phone login -->
-  <div>
-    <h3>Phone Login</h3>
-    <input id="phoneNumber" type="tel" placeholder="+1234567890" />
-    <div id="recaptcha-container"></div>
-    <button onclick="sendPhoneCode()">Send Code</button><br><br>
-
-    <input id="verificationCode" placeholder="Enter code" />
-    <button onclick="verifyCode()">Verify Code</button>
-  </div>
-
-  <hr>
-
-  <button onclick="logout()">Logout</button>
-
   <p id="status">Not logged in.</p>
 
   <script>
     // Your Firebase config
-const firebaseConfig = {
+    const firebaseConfig = {
       apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0",
       authDomain: "social-media-platform-b3242.firebaseapp.com",
       projectId: "social-media-platform-b3242",
       storageBucket: "social-media-platform-b3242.firebasestorage.app",
       messagingSenderId: "85114084944",
       appId: "1:85114084944:web:b3ef84305bc8c04dabfb55",
-      measurementId: "G-7L2K0ZDT32"
+measurementId: "G-7L2K0ZDT32"
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
 
     // Email sign-up
@@ -72,54 +57,9 @@ const firebaseConfig = {
       const password = document.getElementById('password').value;
       auth.signInWithEmailAndPassword(email, password)
         .then(userCredential => {
-document.getElementById('status').innerText = "Logged in: " + userCredential.user.email;
+          document.getElementById('status').innerText = "Logged in: " + userCredential.user.email;
         })
         .catch(error => alert(error.message));
-    }
-
-    // reCAPTCHA verifier
-    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-      size: 'normal',
-      callback: function(response) {
-        console.log('reCAPTCHA passed');
-      },
-      'expired-callback': function() {
-        alert('reCAPTCHA expired, please verify again.');
-      }
-    });
-
-    recaptchaVerifier.render();
-
-    // Send SMS code
-    function sendPhoneCode() {
-      const phoneNumber = document.getElementById('phoneNumber').value;
-      const appVerifier = window.recaptchaVerifier;
-
-      auth.signInWithPhoneNumber(phoneNumber, appVerifier)
-        .then(confirmationResult => {
-          window.confirmationResult = confirmationResult;
-          alert('SMS code sent!');
-        })
-        .catch(error => alert(error.message));
-    }
-
-    // Verify SMS code
-    function verifyCode() {
-      const code = document.getElementById('verificationCode').value;
-      window.confirmationResult.confirm(code)
-        .then(result => {
-          const user = result.user;
-document.getElementById('status').innerText = "Phone login successful: " + user.phoneNumber;
-        })
-        .catch(error => alert(error.message));
-    }
-
-    // Logout
-    function logout() {
-      auth.signOut()
-        .then(() => {
-          document.getElementById('status').innerText = "Logged out.";
-        });
     }
 
     // Listen for auth state changes
@@ -128,9 +68,10 @@ document.getElementById('status').innerText = "Phone login successful: " + user.
         document.getElementById('status').innerText = "Logged in as: " + (user.email || user.phoneNumber);
       } else {
         document.getElementById('status').innerText = "Not logged in.";
-      }
+}
     });
   </script>
 
 </body>
 </html>
+

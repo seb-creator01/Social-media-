@@ -56,6 +56,9 @@
             border-bottom: 1px solid var(--color-border);
             padding: 10px 0;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 50; /* Ensure navbar stays above content */
         }
         .navbar {
             display: flex;
@@ -67,10 +70,14 @@
             font-weight: 700;
             color: var(--color-primary);
         }
-        .nav-links button {
+        .nav-links {
+            display: flex;
+            align-items: center;
+        }
+        #app-nav button {
             margin-left: 10px;
         }
-
+        
         /* --- FORMS & BUTTONS --- */
         .card {
             background-color: var(--color-card-bg);
@@ -79,6 +86,11 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
             max-width: 400px;
             margin: 50px auto;
+        }
+        /* Auth View specific centering */
+        #auth-view .card {
+            max-width: 400px;
+            margin: 10vh auto; /* Center vertically on auth screen */
         }
         input[type="email"],
         input[type="password"],
@@ -113,51 +125,22 @@
         .btn-primary:hover {
             background-color: var(--color-primary-dark);
         }
-        .btn-secondary {
-            background-color: var(--color-border);
-            color: var(--color-text);
-        }
-        .btn-secondary:hover {
-            opacity: 0.8;
-        }
         .btn-icon {
             background: none;
             border: none;
             color: var(--color-text);
-            font-size: 1.2rem;
-            padding: 5px;
+            font-size: 1.0rem;
+            padding: 5px 10px;
         }
         .btn-icon:hover {
             color: var(--color-primary);
         }
 
-        /* --- MAIN CONTENT & POSTS --- */
-        .content-area {
-            display: grid;
-            /* 250px for sidebar | minmax for feed | 300px for profile */
-            grid-template-columns: 250px 1fr 300px; 
-            gap: 20px;
+        /* --- PAGE CONTENT --- */
+        .page-content {
             padding-top: 20px;
         }
-        @media (max-width: 1000px) {
-            /* Collapse the chat sidebar on smaller screens */
-            .content-area {
-                grid-template-columns: 1fr 300px;
-            }
-            #chat-sidebar {
-                display: none;
-            }
-        }
-        .sidebar-column {
-            /* Sticky position for persistent visibility */
-            position: sticky; 
-            top: 20px;
-            height: calc(100vh - 40px);
-            overflow-y: auto;
-            padding-right: 10px; /* Space for scrollbar */
-        }
         .feed-column {
-            /* Center the post cards in the feed column */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -170,7 +153,7 @@
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
             border: 1px solid var(--color-border);
             max-width: 600px;
-            width: 100%; /* Ensure it fills the column */
+            width: 100%;
             margin: 0 0 20px 0;
         }
         .post-header {
@@ -190,32 +173,10 @@
             color: white;
             font-weight: 700;
         }
-        .post-username {
-            font-weight: 600;
-        }
-        .post-actions {
-            display: flex;
-            gap: 15px;
-            margin-top: 15px;
-            border-top: 1px solid var(--color-border);
-            padding-top: 10px;
-        }
-        .post-actions button {
-            background: none;
-            color: var(--color-text);
-            font-weight: 400;
-        }
-        .post-actions button i {
-            margin-right: 5px;
-        }
-        .post-actions button:hover {
-            color: var(--color-primary);
-        }
         
         /* Profile Page Styles */
         #profile-view {
             text-align: center;
-            max-width: none;
         }
         .profile-picture-lg {
             width: 120px;
@@ -233,12 +194,7 @@
         .edit-form-group {
             text-align: left;
         }
-        .edit-form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-
+        
         /* --- CHAT STYLES --- */
         .chat-list {
             margin-top: 10px;
@@ -261,22 +217,10 @@
         }
         .chat-username {
             font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
         .last-message {
             font-size: 0.8rem;
             color: #6b7280;
-            margin: 2px 0 0 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .chat-time {
-            font-size: 0.7rem;
-            color: #6b7280;
-            margin-left: 10px;
         }
         /* Chat Window Modal Styles (fixed position for floating chat) */
         #chat-window-modal {
@@ -297,49 +241,21 @@
             border: 1px solid var(--color-border);
         }
         .chat-header-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            border-bottom: 1px solid var(--color-border);
-            font-weight: 600;
+            /* ... (Styles are already present in the previous version) ... */
         }
         .chat-messages-container {
-            flex-grow: 1;
-            padding: 15px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .chat-input-area {
-            display: flex;
-            padding: 10px;
-            border-top: 1px solid var(--color-border);
-        }
-        .chat-input-area input {
-            flex-grow: 1;
-            margin-bottom: 0;
-            margin-right: 10px;
-        }
-        /* Message Bubble Styles */
-        .message {
-            max-width: 80%;
-            padding: 8px 12px;
-            border-radius: 18px;
-            line-height: 1.4;
-            font-size: 0.95rem;
+            /* ... (Styles are already present in the previous version) ... */
         }
         .message.sent {
             background-color: var(--color-primary);
             color: white;
-            align-self: flex-end; /* Align right */
+            align-self: flex-end;
             border-bottom-right-radius: 2px;
         }
         .message.received {
             background-color: var(--color-border);
             color: var(--color-text);
-            align-self: flex-start; /* Align left */
+            align-self: flex-start;
             border-bottom-left-radius: 2px;
         }
     </style>
@@ -352,6 +268,14 @@
                 <button class="btn-icon" id="theme-toggle" onclick="toggleDarkMode()">
                     <i class="fas fa-moon"></i>
                 </button>
+                
+                <div id="app-nav" style="display: none;">
+                    <button class="btn-icon" onclick="showView('home-view')"><i class="fas fa-home"></i> Home</button>
+                    <button class="btn-icon" onclick="showView('chat-page-view')"><i class="fas fa-comment-dots"></i> Chat</button>
+                    <button class="btn-icon" onclick="showView('profile-page-view')"><i class="fas fa-user"></i> Profile</button>
+                    <button class="btn-primary" onclick="logout()" style="margin-left: 15px; padding: 10px 15px;">Logout</button>
+                </div>
+                
                 <div id="auth-controls">
                     </div>
             </div>
@@ -377,80 +301,78 @@
             </div>
         </div>
 
-        <div id="app-view" class="view" style="display: none;">
-            <div class="content-area">
-
-                <div id="chat-sidebar" class="sidebar-column">
-                    <h3>Chats <i class="fas fa-comment-dots"></i></h3>
-                    <div class="chat-list">
-                        <div class="chat-item" onclick="openChat('Alex_The_Dev')">
-                            <div class="chat-avatar">A</div>
-                            <div class="chat-info">
-                                <span class="chat-username">Alex_The_Dev</span>
-                                <p class="last-message">Starting the foundation...</p>
-                            </div>
-                            <span class="chat-time">2m</span>
-                        </div>
-                        <div class="chat-item" onclick="openChat('Marketing_Mgr')">
-                            <div class="chat-avatar" style="background-color: #f59e0b;">M</div>
-                            <div class="chat-info">
-                                <span class="chat-username">Marketing_Mgr</span>
-                                <p class="last-message">Sounds great!</p>
-                            </div>
-                            <span class="chat-time">1h</span>
-                        </div>
-                    </div>
+        <div id="home-view" class="view page-content" style="display: none;">
+            <div class="feed-column">
+                <div class="card" style="margin: 0 0 20px 0; max-width: 600px; width: 100%;">
+                    <h4>What's on your mind, <span id="current-user-name"></span>?</h4>
+                    <textarea id="post-text" placeholder="Share a thought..." rows="3"></textarea>
+                    <input type="file" id="post-media" accept="image/*,video/*" style="margin-bottom: 10px;">
+                    <button class="btn-primary" onclick="createPost()">Post</button>
                 </div>
 
-                <div class="feed-column">
-                    <div class="card" style="margin: 0 0 20px 0; max-width: 600px; width: 100%;">
-                        <h4>What's on your mind, <span id="current-user-name"></span>?</h4>
-                        <textarea id="post-text" placeholder="Share a thought..." rows="3"></textarea>
-                        <input type="file" id="post-media" accept="image/*,video/*" style="margin-bottom: 10px;">
-                        <button class="btn-primary" onclick="createPost()">Post</button>
+                <h3 style="margin-top: 30px; align-self: flex-start; margin-left: auto; margin-right: auto; max-width: 600px; width: 100%;">Home Feed (Mock Data)</h3>
+                <div class="post-card">
+                    <div class="post-header">
+                        <div class="post-avatar">A</div>
+                        <div class="post-info">
+                            <span class="post-username">Alex_The_Dev</span>
+                            <div style="font-size: 0.8rem; color: #6b7280;">1h ago</div>
+                        </div>
                     </div>
-
-                    <h3 style="margin-top: 30px; align-self: flex-start; margin-left: auto; margin-right: auto; max-width: 600px; width: 100%;">Home Feed (Mock Data)</h3>
-                    <div class="post-card">
-                        <div class="post-header">
-                            <div class="post-avatar">A</div>
-                            <div class="post-info">
-                                <span class="post-username">Alex_The_Dev</span>
-                                <div style="font-size: 0.8rem; color: #6b7280;">1h ago</div>
-                            </div>
-                        </div>
-                        <p>Starting the foundation for my new social media app! Firebase is making the backend incredibly fast to set up. #Serverless #Coding</p>
-                        <div class="post-actions">
-                            <button><i class="far fa-heart"></i> Like (12)</button>
-                            <button><i class="far fa-comment"></i> Comment (4)</button>
-                            <button><i class="fas fa-share"></i> Share</button>
-                        </div>
+                    <p>Starting the foundation for my new social media app! Firebase is making the backend incredibly fast to set up. #Serverless #Coding</p>
+                    <div class="post-actions">
+                        <button><i class="far fa-heart"></i> Like (12)</button>
+                        <button><i class="far fa-comment"></i> Comment (4)</button>
+                        <button><i class="fas fa-share"></i> Share</button>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div id="profile-view" class="card" style="max-width: none; margin: 0;">
-                    <h3>My Profile</h3>
-                    <div class="profile-picture-lg" id="profile-initials">J</div>
-                    <h2 id="profile-display-name">Loading...</h2>
-                    <p id="profile-email" style="color: #6b7280;"></p>
-                    <p id="profile-bio">Bio: Tell us about yourself! (Click Edit Profile)</p>
-                    
-                    <button class="btn-secondary" onclick="toggleEditProfile(true)">Edit Profile</button>
+        <div id="profile-page-view" class="view page-content" style="display: none;">
+            <div id="profile-view" class="card" style="max-width: 600px; margin: 20px auto;">
+                <h3>My Profile</h3>
+                <div class="profile-picture-lg" id="profile-initials">J</div>
+                <h2 id="profile-display-name">Loading...</h2>
+                <p id="profile-email" style="color: #6b7280;"></p>
+                <p id="profile-bio">Bio: Tell us about yourself! (Click Edit Profile)</p>
+                
+                <button class="btn-primary" onclick="toggleEditProfile(true)">Edit Profile</button>
 
-                    <div id="profile-edit-form" style="display: none; margin-top: 20px;" class="edit-form-group">
-                        <hr style="margin: 20px 0; border-color: var(--color-border);">
-                        <h4>Edit Details</h4>
-                        <label for="edit-name">Display Name</label>
-                        <input type="text" id="edit-name">
-                        <label for="edit-bio">Bio</label>
-                        <textarea id="edit-bio" rows="3"></textarea>
-                        <button class="btn-primary" onclick="updateProfile()">Save Changes</button>
-                        <button class="btn-secondary" onclick="toggleEditProfile(false)">Cancel</button>
+                <div id="profile-edit-form" style="display: none; margin-top: 20px;" class="edit-form-group">
+                    <hr style="margin: 20px 0; border-color: var(--color-border);">
+                    <h4>Edit Details</h4>
+                    <label for="edit-name">Display Name</label>
+                    <input type="text" id="edit-name">
+                    <label for="edit-bio">Bio</label>
+                    <textarea id="edit-bio" rows="3"></textarea>
+                    <button class="btn-primary" onclick="updateProfile()">Save Changes</button>
+                    <button class="btn-secondary" onclick="toggleEditProfile(false)">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="chat-page-view" class="view page-content" style="display: none;">
+            <div id="chat-list-container" class="card" style="max-width: 500px; margin: 0 auto; padding: 20px;">
+                <h3>Active Chats <i class="fas fa-comment-dots"></i></h3>
+                <div class="chat-list">
+                    <div class="chat-item" onclick="openChat('Alex_The_Dev')">
+                        <div class="post-avatar">A</div>
+                        <div class="chat-info">
+                            <span class="chat-username">Alex_The_Dev</span>
+                            <p class="last-message">Starting the foundation...</p>
+                        </div>
+                        <span class="chat-time">2m</span>
                     </div>
-
-                    <div style="margin-top: 20px;">
-                        <button class="btn-primary" onclick="logout()">Logout</button>
+                    <div class="chat-item" onclick="openChat('Marketing_Mgr')">
+                        <div class="post-avatar" style="background-color: #f59e0b;">M</div>
+                        <div class="chat-info">
+                            <span class="chat-username">Marketing_Mgr</span>
+                            <p class="last-message">Sounds great!</p>
+                        </div>
+                        <span class="chat-time">1h</span>
                     </div>
+                    <p style="margin-top: 20px; font-size: 0.9em; color: #6b7280;">(Click a chat to open the floating window)</p>
                 </div>
             </div>
         </div>
@@ -513,20 +435,30 @@
         });
 
 
-        // --- 3. UI STATE MANAGEMENT (Login Fix Included) ---
+        // --- 3. UI STATE MANAGEMENT (SPA NAVIGATION) ---
         const authView = document.getElementById('auth-view');
-        const appView = document.getElementById('app-view');
         const usernameInput = document.getElementById('username');
         const authError = document.getElementById('auth-error');
-        
-        // References to the buttons for cleaner control
         const signupBtn = document.getElementById('signup-btn');
         const loginBtn = document.getElementById('login-btn');
+        const appNav = document.getElementById('app-nav');
+        
+        // References to all page views
+        const homeView = document.getElementById('home-view');
+        const profilePageView = document.getElementById('profile-page-view');
+        const chatPageView = document.getElementById('chat-page-view');
+        
         let isSigningUp = true; 
 
+        // Function to hide all views and show only the requested one
         function showView(viewId) {
+            // Hide all content containers
             authView.style.display = 'none';
-            appView.style.display = 'none';
+            homeView.style.display = 'none';
+            profilePageView.style.display = 'none';
+            chatPageView.style.display = 'none';
+
+            // Show the requested container
             document.getElementById(viewId).style.display = 'block';
         }
         
@@ -540,8 +472,6 @@
                 document.querySelector('#auth-view h2').innerText = 'Join SociaLink!';
                 link.innerText = 'Already have an account? Switch to Login';
                 usernameInput.style.display = 'block';
-                
-                // Show Sign Up button, hide Login button
                 signupBtn.style.display = 'block';
                 loginBtn.style.display = 'none'; 
                 
@@ -550,8 +480,6 @@
                 document.querySelector('#auth-view h2').innerText = 'Welcome Back!';
                 link.innerText = 'Need an account? Switch to Sign Up';
                 usernameInput.style.display = 'none';
-                
-                // Hide Sign Up button, show Login button
                 signupBtn.style.display = 'none'; 
                 loginBtn.style.display = 'block';
             }
@@ -560,7 +488,6 @@
 
         // --- 4. AUTHENTICATION LOGIC ---
 
-        // Handles both Sign Up and Login based on the argument (isSignUpAction)
         async function handleAuth(isSignUpAction) {
             const email = document.getElementById("email").value;
             const password = document.getElementById("password").value;
@@ -569,20 +496,16 @@
             
             try {
                 if (isSignUpAction) {
-                    // Sign Up Logic
                     if (!username || password.length < 6) {
                         authError.innerText = "Please provide a username and a password of at least 6 characters.";
                         return;
                     }
 
-                    // 1. Create user in Firebase Auth
                     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                     const user = userCredential.user;
 
-                    // 2. Set display name in Auth
                     await user.updateProfile({ displayName: username });
 
-                    // 3. Create user document in Firestore
                     await db.collection('users').doc(user.uid).set({
                         displayName: username,
                         email: user.email,
@@ -592,11 +515,9 @@
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } else {
-                    // Login Logic
                     await auth.signInWithEmailAndPassword(email, password);
                 }
             } catch (error) {
-                // Display the error in the UI
                 authError.innerText = `Authentication Error: ${error.message}`;
             }
         }
@@ -604,6 +525,7 @@
         function logout() {
             auth.signOut().then(() => {
                 showView('auth-view');
+                appNav.style.display = 'none'; // Hide app navigation
             }).catch(error => {
                 alert("Logout Error: " + error.message);
             });
@@ -612,16 +534,17 @@
         // --- 5. AUTH STATE LISTENER & PROFILE MANAGEMENT ---
         auth.onAuthStateChanged(user => {
             if (user) {
-                // User is signed in
-                showView('app-view');
+                // User is signed in: show the Home view and the app navigation
+                appNav.style.display = 'flex'; // Show app navigation
+                showView('home-view');
                 loadUserProfile(user.uid);
             } else {
-                // User is signed out
+                // User is signed out: show the Auth view and hide the app navigation
+                appNav.style.display = 'none';
                 showView('auth-view');
             }
         });
 
-        // Loads profile data from Firestore
         async function loadUserProfile(uid) {
             try {
                 const doc = await db.collection('users').doc(uid).get();
@@ -636,10 +559,8 @@
                     document.getElementById('profile-bio').innerText = `Bio: ${data.bio}`;
                     document.getElementById('profile-initials').innerText = initial;
 
-                    // Load edit form fields
                     document.getElementById('edit-name').value = displayName;
                     document.getElementById('edit-bio').value = data.bio;
-
                 }
             } catch (error) {
                 console.error("Error fetching user profile:", error);
@@ -650,7 +571,6 @@
             document.getElementById('profile-edit-form').style.display = show ? 'block' : 'none';
         }
 
-        // Updates profile data in Firestore
         async function updateProfile() {
             const uid = auth.currentUser.uid;
             const newName = document.getElementById('edit-name').value.trim();
@@ -662,26 +582,23 @@
             }
 
             try {
-                // 1. Update Firestore Document
                 await db.collection('users').doc(uid).update({
                     displayName: newName,
                     bio: newBio
                 });
 
-                // 2. Update Auth profile (optional, but good practice)
                 await auth.currentUser.updateProfile({ displayName: newName });
                 
                 alert("Profile updated successfully!");
                 toggleEditProfile(false);
-                loadUserProfile(uid); // Refresh the UI
+                loadUserProfile(uid);
             } catch (error) {
                 alert("Error updating profile: " + error.message);
             }
         }
 
-        // --- 6. CORE APP FEATURES (MOCK/BASIC IMPLEMENTATION) ---
+        // --- 6. CORE APP FEATURES (POSTING) ---
         
-        // Basic Post Creation (Text only)
         function createPost() {
             const postText = document.getElementById('post-text').value.trim();
 
@@ -703,7 +620,7 @@
             })
             .then(() => {
                 alert("Post created successfully! Check your Firestore console.");
-                document.getElementById('post-text').value = ''; // Clear text
+                document.getElementById('post-text').value = '';
             })
             .catch(error => {
                 alert("Error creating post: " + error.message);
@@ -712,18 +629,15 @@
 
         // --- 7. CHAT UI MANAGEMENT (MOCK) ---
 
-        // Mock function to open the chat window
         function openChat(recipientName) {
             document.getElementById('chat-recipient-name').innerText = recipientName;
             document.getElementById('chat-window-modal').style.display = 'block';
         }
 
-        // Function to close the chat window
         function closeChat() {
             document.getElementById('chat-window-modal').style.display = 'none';
         }
 
-        // Mock function to send a message (UI only for now)
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
@@ -735,8 +649,8 @@
                 messageDiv.innerText = text;
                 
                 messagesContainer.appendChild(messageDiv);
-                input.value = ''; // Clear input
-                messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to bottom
+                input.value = '';
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }
     </script>

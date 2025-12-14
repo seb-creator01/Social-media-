@@ -1,75 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Social Media Auth</title>
+  <title>Login Test</title>
   <meta charset="UTF-8" />
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
 </head>
 <body>
 
   <h2>Sign Up / Login</h2>
-
-  <!-- Email/password login -->
-  <div>
-    <h3>Email Sign-up/Login</h3>
-    <input id="email" type="email" placeholder="Email" />
-    <input id="password" type="password" placeholder="Password" />
-    <button onclick="signUpEmail()">Sign Up</button>
-    <button onclick="loginEmail()">Login</button>
-  </div>
-
-  <hr>
+  <input id="email" type="email" placeholder="Email" />
+  <input id="password" type="password" placeholder="Password" />
+  <button onclick="signUp()">Sign Up</button>
+  <button onclick="login()">Login</button>
 
   <p id="status">Not logged in.</p>
 
   <script>
-    // Your Firebase config
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0",
       authDomain: "social-media-platform-b3242.firebaseapp.com",
       projectId: "social-media-platform-b3242",
-      storageBucket: "social-media-platform-b3242.firebasestorage.app",
-      messagingSenderId: "85114084944",
+      storageBucket: "social-media-platform-b3242.appspot.com",
+messagingSenderId: "85114084944",
       appId: "1:85114084944:web:b3ef84305bc8c04dabfb55",
-measurementId: "G-7L2K0ZDT32"
+      measurementId: "G-7L2K0ZDT32"
     };
 
-    // Initialize Firebase
+    // Init Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
 
-    // Email sign-up
-    function signUpEmail() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
+    // Sign up
+    function signUp() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
       auth.createUserWithEmailAndPassword(email, password)
-        .then(userCredential => {
-          document.getElementById('status').innerText = "Signed up: " + userCredential.user.email;
+        .then(user => {
+          document.getElementById("status").innerText = "Signed up: " + user.user.email;
         })
         .catch(error => alert(error.message));
     }
 
-    // Email login
-    function loginEmail() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
+    // Login
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
       auth.signInWithEmailAndPassword(email, password)
-        .then(userCredential => {
-          document.getElementById('status').innerText = "Logged in: " + userCredential.user.email;
+        .then(user => {
+          document.getElementById("status").innerText = "Logged in: " + user.user.email;
         })
         .catch(error => alert(error.message));
     }
-
-    // Listen for auth state changes
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        document.getElementById('status').innerText = "Logged in as: " + (user.email || user.phoneNumber);
-      } else {
-        document.getElementById('status').innerText = "Not logged in.";
-}
-    });
   </script>
 
 </body>

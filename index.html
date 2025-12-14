@@ -134,11 +134,34 @@
         /* --- MAIN CONTENT & POSTS --- */
         .content-area {
             display: grid;
-            grid-template-columns: 1fr;
+            /* 250px for sidebar | minmax for feed | 300px for profile */
+            grid-template-columns: 250px 1fr 300px; 
             gap: 20px;
             padding-top: 20px;
         }
-
+        @media (max-width: 1000px) {
+            /* Collapse the chat sidebar on smaller screens */
+            .content-area {
+                grid-template-columns: 1fr 300px;
+            }
+            #chat-sidebar {
+                display: none;
+            }
+        }
+        .sidebar-column {
+            /* Sticky position for persistent visibility */
+            position: sticky; 
+            top: 20px;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+            padding-right: 10px; /* Space for scrollbar */
+        }
+        .feed-column {
+            /* Center the post cards in the feed column */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
         /* Home Feed/Posts */
         .post-card {
             background-color: var(--color-card-bg);
@@ -147,7 +170,8 @@
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
             border: 1px solid var(--color-border);
             max-width: 600px;
-            margin: 0 auto 20px;
+            width: 100%; /* Ensure it fills the column */
+            margin: 0 0 20px 0;
         }
         .post-header {
             display: flex;
@@ -191,8 +215,7 @@
         /* Profile Page Styles */
         #profile-view {
             text-align: center;
-            max-width: 600px;
-            margin: 20px auto;
+            max-width: none;
         }
         .profile-picture-lg {
             width: 120px;
@@ -215,7 +238,110 @@
             margin-bottom: 5px;
             font-weight: 600;
         }
-        
+
+        /* --- CHAT STYLES --- */
+        .chat-list {
+            margin-top: 10px;
+        }
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .chat-item:hover {
+            background-color: var(--color-border);
+        }
+        .chat-info {
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        .chat-username {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .last-message {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin: 2px 0 0 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-time {
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-left: 10px;
+        }
+        /* Chat Window Modal Styles (fixed position for floating chat) */
+        #chat-window-modal {
+            position: fixed;
+            bottom: 0;
+            right: 20px;
+            width: 350px;
+            height: 450px;
+            z-index: 1000;
+        }
+        .chat-window-card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--color-card-bg);
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+            border: 1px solid var(--color-border);
+        }
+        .chat-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--color-border);
+            font-weight: 600;
+        }
+        .chat-messages-container {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid var(--color-border);
+        }
+        .chat-input-area input {
+            flex-grow: 1;
+            margin-bottom: 0;
+            margin-right: 10px;
+        }
+        /* Message Bubble Styles */
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 18px;
+            line-height: 1.4;
+            font-size: 0.95rem;
+        }
+        .message.sent {
+            background-color: var(--color-primary);
+            color: white;
+            align-self: flex-end; /* Align right */
+            border-bottom-right-radius: 2px;
+        }
+        .message.received {
+            background-color: var(--color-border);
+            color: var(--color-text);
+            align-self: flex-start; /* Align left */
+            border-bottom-left-radius: 2px;
+        }
     </style>
 </head>
 <body>
@@ -253,15 +379,38 @@
 
         <div id="app-view" class="view" style="display: none;">
             <div class="content-area">
+
+                <div id="chat-sidebar" class="sidebar-column">
+                    <h3>Chats <i class="fas fa-comment-dots"></i></h3>
+                    <div class="chat-list">
+                        <div class="chat-item" onclick="openChat('Alex_The_Dev')">
+                            <div class="chat-avatar">A</div>
+                            <div class="chat-info">
+                                <span class="chat-username">Alex_The_Dev</span>
+                                <p class="last-message">Starting the foundation...</p>
+                            </div>
+                            <span class="chat-time">2m</span>
+                        </div>
+                        <div class="chat-item" onclick="openChat('Marketing_Mgr')">
+                            <div class="chat-avatar" style="background-color: #f59e0b;">M</div>
+                            <div class="chat-info">
+                                <span class="chat-username">Marketing_Mgr</span>
+                                <p class="last-message">Sounds great!</p>
+                            </div>
+                            <span class="chat-time">1h</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="feed-column">
-                    <div class="card" style="margin: 0 0 20px 0;">
+                    <div class="card" style="margin: 0 0 20px 0; max-width: 600px; width: 100%;">
                         <h4>What's on your mind, <span id="current-user-name"></span>?</h4>
                         <textarea id="post-text" placeholder="Share a thought..." rows="3"></textarea>
                         <input type="file" id="post-media" accept="image/*,video/*" style="margin-bottom: 10px;">
                         <button class="btn-primary" onclick="createPost()">Post</button>
                     </div>
 
-                    <h3 style="margin-top: 30px;">Home Feed (Mock Data)</h3>
+                    <h3 style="margin-top: 30px; align-self: flex-start; margin-left: auto; margin-right: auto; max-width: 600px; width: 100%;">Home Feed (Mock Data)</h3>
                     <div class="post-card">
                         <div class="post-header">
                             <div class="post-avatar">A</div>
@@ -305,15 +454,42 @@
                 </div>
             </div>
         </div>
+
+        <div id="chat-window-modal" style="display: none;">
+            <div class="chat-window-card">
+                <div class="chat-header-bar">
+                    <span id="chat-recipient-name"></span>
+                    <button class="btn-icon" onclick="closeChat()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div id="chat-messages" class="chat-messages-container">
+                    <div class="message received">Hey, welcome to SociaLink!</div>
+                    <div class="message sent">Thanks! The UI looks great.</div>
+                    <div class="message received">We should connect this to the real-time Firebase backend soon!</div>
+                </div>
+                
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Type a message..." />
+                    <button class="btn-primary" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <script>
         // --- 1. FIREBASE INITIALIZATION AND CONFIG ---
+        // These are the keys you provided. They are public and safe to include here.
         const firebaseConfig = {
-            apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0", // Use your REAL key here
+            apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0", 
             authDomain: "social-media-platform-b3242.firebaseapp.com",
             projectId: "social-media-platform-b3242",
-            // ... rest of your config
+            storageBucket: "social-media-platform-b3242.appspot.com",
+            messagingSenderId: "85114084944",
+            appId: "1:85114084944:web:b3ef84305bc8c04dabfb55",
+            measurementId: "G-7L2K0ZDT32"
         };
 
         const app = firebase.initializeApp(firebaseConfig);
@@ -332,7 +508,8 @@
         // Apply theme from local storage on load
         document.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('theme') === 'dark') {
-                toggleDarkMode(); // Calls the function to switch to dark and update icon
+                document.body.classList.add('dark-mode');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
             }
         });
 
@@ -359,20 +536,20 @@
                 document.querySelector('#auth-view h2').innerText = 'Join SociaLink!';
                 link.innerText = 'Already have an account? Switch to Login';
                 usernameInput.style.display = 'block';
-                document.querySelectorAll('#auth-view button')[0].innerText = 'Sign Up';
-                document.querySelectorAll('#auth-view button')[1].style.display = 'none';
-                document.querySelector('#auth-view button:nth-child(2)').style.display = 'block';
+                // Adjusting button visibility based on the simplified HTML structure
+                document.querySelector('#auth-view button:nth-child(5)').innerText = 'Sign Up';
+                document.querySelector('#auth-view button:nth-child(6)').style.display = 'block'; // Login button is visible when ready
             } else {
                 document.querySelector('#auth-view h2').innerText = 'Welcome Back!';
                 link.innerText = 'Need an account? Switch to Sign Up';
                 usernameInput.style.display = 'none';
-                document.querySelectorAll('#auth-view button')[0].innerText = 'Sign Up'; // Keep button label
-                document.querySelectorAll('#auth-view button')[1].style.display = 'block';
+                document.querySelector('#auth-view button:nth-child(5)').innerText = 'Login';
+                document.querySelector('#auth-view button:nth-child(6)').style.display = 'none'; // Sign Up button is hidden when ready
             }
         }
         toggleAuthMode(); // Initialize to Sign Up mode
 
-        // --- 4. AUTHENTICATION LOGIC (FROM YOUR CODE, MODIFIED) ---
+        // --- 4. AUTHENTICATION LOGIC ---
 
         // Handles both Sign Up and Login based on global state
         async function handleAuth(isSignUpAction) {
@@ -496,8 +673,6 @@
         // Basic Post Creation (Text only, for now)
         function createPost() {
             const postText = document.getElementById('post-text').value.trim();
-            // Note: Media upload (images/videos) requires Firebase Storage, which is not fully implemented here.
-            // This function only handles the text and stores it in a 'posts' collection.
 
             if (!postText) {
                 alert("Post content cannot be empty.");
@@ -524,10 +699,35 @@
             });
         }
 
-        // The remaining features (Chat, Voice/Video, Notifications, Admin, Monetization)
-        // require significantly more code (Cloud Functions, Realtime DB, third-party APIs)
-        // and cannot be reasonably included in a single HTML file foundation.
+        // --- 7. CHAT UI MANAGEMENT (MOCK) ---
 
+        // Mock function to open the chat window
+        function openChat(recipientName) {
+            document.getElementById('chat-recipient-name').innerText = recipientName;
+            document.getElementById('chat-window-modal').style.display = 'block';
+        }
+
+        // Function to close the chat window
+        function closeChat() {
+            document.getElementById('chat-window-modal').style.display = 'none';
+        }
+
+        // Mock function to send a message (UI only for now)
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            const messagesContainer = document.getElementById('chat-messages');
+
+            if (text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', 'sent');
+                messageDiv.innerText = text;
+                
+                messagesContainer.appendChild(messageDiv);
+                input.value = ''; // Clear input
+                messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to bottom
+            }
+        }
     </script>
 </body>
 </html>

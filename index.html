@@ -772,6 +772,7 @@
                 // Reload the profile to update the button and counts
                 loadProfileData(targetUserId); 
                 loadDrawerProfile(currentUserId); 
+                loadFeed(); // Reload the feed after following/unfollowing
             } catch (error) {
                 console.error("Error executing follow transaction:", error);
                 alert("Error updating follow status. Check security rules and network connection.");
@@ -843,7 +844,8 @@
                 });
             } catch (error) {
                 console.error("Error toggling like:", error);
-                alert("Error toggling like. Check security rules.");
+                // THE ALERT TEXT IS THE KEY TO THE BUG: It tells the user to fix the rules.
+                alert("Error toggling like. Check security rules."); 
             }
         }
         
@@ -883,7 +885,7 @@
 
         // --- 8. DYNAMIC HOME FEED LOGIC (UPDATED FOR FILTERING) ---
 
-        // NEW FUNCTION: GET FOLLOWED USERS' UIDs
+        // NEW FUNCTION: GET FOLLOWED USERS' UIDs (INCLUDES CURRENT USER)
         async function getFollowingUids() {
             if (!auth.currentUser) return [];
 
@@ -894,8 +896,8 @@
             // Map the documents to an array of just the User IDs
             const followedUids = followingSnapshot.docs.map(doc => doc.id);
             
-            // Always include the current user's UID so they see their own posts
-            followedUids.push(auth.currentUser.uid);
+            // CRITICAL LINE: Always include the current user's UID so they see their own posts
+            followedUids.push(auth.currentUser.uid); 
             
             // Firestore's 'in' query supports a maximum of 10 IDs. We should limit this.
             return followedUids.slice(0, 10); 
@@ -962,9 +964,17 @@
             // 1. Get the UIDs of the people the current user is following
             const followedUids = await getFollowingUids();
             
-            if (followedUids.length <= 1) { // 1 means only the current user is in the array
-                feedContainer.innerHTML += '<p id="empty-feed-msg" class="card" style="margin-top:20px; text-align:center;">Follow people to see their posts here!</p>';
+            // Check for the 'empty feed' message condition: if the array only contains the current user's UID.
+            const hasFollowing = followedUids.length > 1; 
+
+            if (!hasFollowing) { 
+                 // If the user isn't following anyone (besides themselves), show a message
+                const existingMsg = document.getElementById('empty-feed-msg');
+                if (!existingMsg) {
+                    feedContainer.innerHTML += '<p id="empty-feed-msg" class="card" style="margin-top:20px; text-align:center;">Follow people to see their posts here! You will only see your own posts until you follow someone.</p>';
+                }
             }
+
 
             // 2. Query posts where the 'userId' is IN the list of followedUids
             const postsRef = db.collection('posts')
@@ -974,8 +984,8 @@
             
             unsubscribeFromFeed = postsRef.onSnapshot(snapshot => {
                 const emptyMsg = document.getElementById('empty-feed-msg');
-                if (emptyMsg && snapshot.size > 0) {
-                    emptyMsg.remove();
+                if (emptyMsg && snapshot.size > followedUids.length) { // If total posts > number of users being tracked, remove msg
+                     emptyMsg.remove();
                 }
 
                 snapshot.docChanges().forEach(change => {
@@ -1078,7 +1088,7 @@
             const displayName = auth.currentUser.displayName || 'Anonymous';
 
             try {
-                // 1. Add comment to the subcollection (Rules allow this CREATE)
+                // 1. Add comment to the subcollection 
                 await db.collection('posts').doc(postId).collection('comments').add({
                     userId: uid,
                     displayName: displayName,
@@ -1086,7 +1096,7 @@
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // 2. Atomically update the main post's comment count (Rules allow this UPDATE)
+                // 2. Atomically update the main post's comment count 
                 const postRef = db.collection('posts').doc(postId);
                 await postRef.update({
                     commentsCount: firebase.firestore.FieldValue.increment(1)

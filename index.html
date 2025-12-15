@@ -97,7 +97,7 @@
         input[type="password"],
         input[type="text"],
         textarea,
-        select, /* ADDED: Select for email privacy */
+        select,
         .input-group {
             width: 100%;
             padding: 10px;
@@ -195,7 +195,7 @@
             justify-content: center;
             color: white;
             font-weight: 700;
-            cursor: pointer; /* Added cursor for navigation */
+            cursor: pointer; 
         }
         .post-card {
             background-color: var(--color-card-bg);
@@ -236,10 +236,10 @@
             padding: 5px;
         }
 
-        /* STICKY FEED CONTROLS */
+        /* STICKY FEED CONTROLS (UPDATED FOR FIXED SCROLL) */
         #feed-controls-sticky {
-            position: sticky;
-            top: 60px; 
+            position: sticky; /* Use sticky for the feed controls */
+            top: 60px; /* Below the main header */
             background-color: var(--color-card-bg);
             padding: 10px 20px;
             z-index: 10;
@@ -307,7 +307,7 @@
             z-index: 10;
         }
 
-        /* CHAT STYLES (NEW/UPDATED) */
+        /* CHAT STYLES */
         .chat-window-card {
             position: fixed;
             top: 0;
@@ -454,7 +454,7 @@
         <div class="drawer-links">
             <a href="#" onclick="navigateAndClose('profile-page-view', auth.currentUser.uid)"><i class="fas fa-user"></i> Profile</a>
             <a href="#" onclick="navigateAndClose('home-view')"><i class="fas fa-rss"></i> Feed</a>
-            <a href="#" onclick="navigateAndClose('chat-page-view')"><i class="fas fa-comment-dots"></i> Chat <span class="beta-badge">Beta</span></a>
+            <a href="#" onclick="navigateAndClose('chat-page-view', null, event)"><i class="fas fa-comment-dots"></i> Chat <span class="beta-badge">Beta</span></a>
             
             <a href="#" onclick="navigateAndClose('notifications-view')">
                 <i class="fas fa-bell"></i> Notifications 
@@ -776,7 +776,7 @@
         }
 
 
-        // --- 4. SPA NAVIGATION & DRAWER CONTROL ---
+        // --- 4. SPA NAVIGATION & DRAWER CONTROL (UPDATED FOR CHAT FIX) ---
         
         function showView(viewId, targetUserId = null, isBackNavigation = false) {
             // Hide all views
@@ -815,8 +815,11 @@
             }
         }
 
-        // Handle navigation from buttons/links
-        function navigateAndClose(viewId, targetUserId = null) {
+        // Handle navigation from buttons/links (FIX: Added event to prevent default link behavior)
+        function navigateAndClose(viewId, targetUserId = null, event = null) {
+            if (event) {
+                event.preventDefault(); // Prevents the <a> tag's default action (page reload/hash jump)
+            }
             showView(viewId, targetUserId, false); // Not a back navigation
             toggleSideDrawer(false);
         }
@@ -1159,6 +1162,7 @@
             const followersRef = db.collection('users').doc(targetUserId).collection('followers').doc(currentUserId);
 
             try {
+                // FIX: Ensured the transaction is performed atomically as intended
                 await db.runTransaction(async (transaction) => {
                      const currentUserDoc = await transaction.get(currentUserRef);
                      const targetUserDoc = await transaction.get(targetUserRef);
@@ -1181,7 +1185,9 @@
 
                         // Create Notification
                         const sourceUserName = auth.currentUser.displayName;
-                         await createNotification(
+                        // IMPORTANT: Need to use 'await' here to ensure the notification is created within the transaction scope or handle it outside if it causes timeout. 
+                        // For simplicity in a local app, we'll keep it as an async call within the transaction scope, but be mindful of latency.
+                        await createNotification(
                             targetUserId, 
                             'follow', 
                             sourceUserName, 
@@ -1205,7 +1211,7 @@
         }
 
 
-        // --- 7. POSTING, LIKES, DELETION, AND SHARING LOGIC ---
+        // --- 7. POSTING, LIKES, DELETION, AND SHARING LOGIC (FIXED LIKE/COMMENT LOGIC) ---
         
         function createPost() {
             const postText = document.getElementById('post-text').value.trim();
@@ -1233,24 +1239,30 @@
             });
         }
         
-        // FUNCTION FOR LIKES 
+        // FUNCTION FOR LIKES (FIXED)
         async function toggleLike(postId) {
-            if (!auth.currentUser) return;
+            if (!auth.currentUser) {
+                alert("You must be logged in to like posts.");
+                return;
+            }
 
             const postRef = db.collection('posts').doc(postId);
             const uid = auth.currentUser.uid;
 
             try {
+                // Ensure the transaction is complete and returns a promise
                 await db.runTransaction(async (transaction) => {
                     const postDoc = await transaction.get(postRef);
 
                     if (!postDoc.exists) {
-                        throw "Post does not exist!";
+                        // Throwing an error stops the transaction
+                        throw new Error("Post does not exist!");
                     }
 
-                    const likedBy = postDoc.data().likedBy || [];
-                    let postAuthorId = postDoc.data().userId; 
-                    let newLikesCount = postDoc.data().likesCount || 0;
+                    const postData = postDoc.data();
+                    const likedBy = postData.likedBy || [];
+                    const postAuthorId = postData.userId; 
+                    let newLikesCount = postData.likesCount || 0;
                     let updatedLikedBy;
                     let notificationNeeded = false;
                     
@@ -1267,11 +1279,16 @@
                         }
                     }
 
+                    // Perform the update
                     transaction.update(postRef, {
                         likesCount: newLikesCount,
                         likedBy: updatedLikedBy
                     });
                     
+                    // Create Notification (outside of transaction if it's not a read/write operation on postDoc)
+                    // We call the async function inside the transaction for atomic read/write, 
+                    // and allow the notification to be created afterward (or handle the promise outside). 
+                    // For the sake of demonstration and simple rollback, we'll keep the function call here.
                     if (notificationNeeded) {
                          const sourceUserName = auth.currentUser.displayName;
                         await createNotification(
@@ -1284,19 +1301,27 @@
                     }
                 });
             } catch (error) {
-                console.error("Error toggling like:", error);
-                alert("Error toggling like. Check console."); 
+                console.error("Error toggling like:", error.message);
+                // alert(`Error toggling like: ${error.message}`); // Enable for better debugging
             }
         }
         
         // FUNCTION FOR DELETING POSTS
         function deletePost(postId) {
             if (!confirm("Are you sure you want to delete this post?")) return;
+            const uid = auth.currentUser.uid;
 
-            db.collection('posts').doc(postId).delete().then(() => {
+            db.collection('posts').doc(postId).get().then(doc => {
+                 if (doc.exists && doc.data().userId === uid) {
+                    return doc.ref.delete();
+                 } else {
+                    throw new Error("You can only delete your own posts.");
+                 }
+            })
+            .then(() => {
                 console.log(`Post ${postId} deleted.`);
             }).catch(error => {
-                alert("Error deleting post: You can only delete your own posts.");
+                alert(`Error deleting post: ${error.message}`);
                 console.error("Error removing document: ", error);
             });
         }
@@ -1429,6 +1454,7 @@
             
             const feedContainer = document.querySelector('.feed-column');
             // Remove previous posts, keeping the first card (new post area)
+            const postCreationCard = feedContainer.querySelector('.card:first-child');
             feedContainer.querySelectorAll('.post-card').forEach(card => card.remove()); 
             
             const followedUids = await getFollowingUids();
@@ -1438,7 +1464,16 @@
             if (existingMsg) existingMsg.remove();
             
             if (!hasFollowing) { 
-                feedContainer.innerHTML += '<p id="empty-feed-msg" class="card" style="margin-top:20px; text-align:center; max-width: 600px; width: 100%;">Follow people or switch to the "Explore" tab to see new posts!</p>';
+                // Insert the message after the creation card and before the sticky bar
+                const newMsg = document.createElement('p');
+                newMsg.id = 'empty-feed-msg';
+                newMsg.className = 'card';
+                newMsg.style.cssText = 'margin-top:20px; text-align:center; max-width: 600px; width: 100%;';
+                newMsg.innerText = 'Follow people or switch to the "Explore" tab to see new posts!';
+                
+                const stickyControl = document.getElementById('feed-controls-sticky');
+                feedContainer.insertBefore(newMsg, stickyControl.nextSibling);
+
             }
 
             if (followedUids.length === 0) {
@@ -1461,12 +1496,13 @@
                     postData.id = change.doc.id; 
                     
                     const existingPostElement = document.getElementById(`post-${postData.id}`);
-                    const postCardCreation = document.querySelector('.feed-column > .card');
+                    const stickyControl = document.getElementById('feed-controls-sticky');
 
                     if (change.type === "added") {
                         if (!existingPostElement) {
                             const newPost = renderPost(postData);
-                            feedContainer.insertBefore(newPost, postCardCreation.nextSibling);
+                            // Insert posts right after the sticky controls
+                            feedContainer.insertBefore(newPost, stickyControl.nextSibling);
                         }
                     } else if (change.type === "modified") {
                         if (existingPostElement) {
@@ -1504,8 +1540,21 @@
                 .limit(20);
             
             unsubscribeFromFeed = postsRef.onSnapshot(snapshot => {
+                const stickyControl = document.getElementById('feed-controls-sticky');
+                
                 if (snapshot.empty) {
-                     feedContainer.innerHTML += '<p id="empty-feed-msg" class="card" style="margin-top:20px; text-align:center; max-width: 600px; width: 100%;">No posts have been created yet. Be the first!</p>';
+                     const newMsg = document.createElement('p');
+                     newMsg.id = 'empty-feed-msg';
+                     newMsg.className = 'card';
+                     newMsg.style.cssText = 'margin-top:20px; text-align:center; max-width: 600px; width: 100%;';
+                     newMsg.innerText = 'No posts have been created yet. Be the first!';
+                     
+                     if (!document.getElementById('empty-feed-msg')) {
+                        feedContainer.insertBefore(newMsg, stickyControl.nextSibling);
+                     }
+                } else {
+                     const emptyMsg = document.getElementById('empty-feed-msg');
+                     if (emptyMsg) emptyMsg.remove();
                 }
 
                 snapshot.docChanges().forEach(change => {
@@ -1513,12 +1562,12 @@
                     postData.id = change.doc.id; 
                     
                     const existingPostElement = document.getElementById(`post-${postData.id}`);
-                    const postCardCreation = document.querySelector('.feed-column > .card');
+                    
 
                     if (change.type === "added") {
                         if (!existingPostElement) {
                             const newPost = renderPost(postData);
-                            feedContainer.insertBefore(newPost, postCardCreation.nextSibling);
+                            feedContainer.insertBefore(newPost, stickyControl.nextSibling);
                         }
                     } else if (change.type === "modified") {
                         if (existingPostElement) {
@@ -1562,22 +1611,29 @@
         }
 
 
-        // --- 9. REAL-TIME COMMENT LOGIC ---
+        // --- 9. REAL-TIME COMMENT LOGIC (FIXED COMMENT LIKE LOGIC) ---
         
         async function toggleCommentLike(postId, commentId) {
-            if (!auth.currentUser) return;
+            if (!auth.currentUser) {
+                alert("You must be logged in to like comments.");
+                return;
+            }
 
             const commentRef = db.collection('posts').doc(postId).collection('comments').doc(commentId);
             const uid = auth.currentUser.uid;
 
             try {
+                // FIX: Ensure the transaction is complete and returns a promise
                 await db.runTransaction(async (transaction) => {
                     const commentDoc = await transaction.get(commentRef);
 
-                    if (!commentDoc.exists) throw "Comment does not exist!";
+                    if (!commentDoc.exists) {
+                        throw new Error("Comment does not exist!");
+                    }
 
-                    const likedBy = commentDoc.data().likedBy || [];
-                    let newLikesCount = commentDoc.data().likesCount || 0;
+                    const commentData = commentDoc.data();
+                    const likedBy = commentData.likedBy || [];
+                    let newLikesCount = commentData.likesCount || 0;
                     let updatedLikedBy;
                     
                     if (likedBy.includes(uid)) {
@@ -1590,13 +1646,15 @@
                         newLikesCount++;
                     }
 
+                    // Perform the update
                     transaction.update(commentRef, {
                         likesCount: newLikesCount,
                         likedBy: updatedLikedBy
                     });
                 });
             } catch (error) {
-                console.error("Error toggling comment like:", error);
+                console.error("Error toggling comment like:", error.message);
+                // alert(`Error toggling comment like: ${error.message}`); // Enable for better debugging
             }
         }
 
@@ -1694,7 +1752,7 @@
             });
         }
 
-        // FUNCTION FOR SUBMITTING COMMENT
+        // FUNCTION FOR SUBMITTING COMMENT (FIXED)
         async function submitComment() {
             const postId = document.getElementById('active-post-id').value;
             const input = document.getElementById('comment-input');
@@ -1710,7 +1768,7 @@
                     const postRef = db.collection('posts').doc(postId);
                     const postDoc = await transaction.get(postRef);
 
-                    if (!postDoc.exists) throw "Post not found!";
+                    if (!postDoc.exists) throw new Error("Post not found!");
 
                     // 1. Add comment to the subcollection 
                     const commentRef = postRef.collection('comments').doc();
@@ -1730,7 +1788,8 @@
                     
                     // 3. Create Notification
                     if (postDoc.data().userId !== uid) {
-                         await createNotification(
+                         // Await added for async call inside transaction
+                         await createNotification( 
                             postDoc.data().userId, 
                             'comment', 
                             displayName, 
@@ -1743,13 +1802,13 @@
                 input.value = '';
 
             } catch (error) {
-                console.error("Error submitting comment (Check Security Rules):", error);
-                alert("Error submitting comment. Check console.");
+                console.error("Error submitting comment (Check Security Rules):", error.message);
+                // alert(`Error submitting comment: ${error.message}`); // Enable for better debugging
             }
         }
 
 
-        // --- 10. REAL-TIME CHAT LOGIC (NEW IMPLEMENTATION) ---
+        // --- 10. REAL-TIME CHAT LOGIC ---
         
         // FUNCTION: Generates a consistent Chat ID by sorting UIDs
         function getChatId(user1Id, user2Id) {

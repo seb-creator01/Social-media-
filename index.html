@@ -3,733 +3,869 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SociaLink - A Modern Social Platform</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>Social App</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
     <style>
-        /* --- CSS VARIABLES FOR THEMEING --- */
         :root {
-            --color-primary: #3b82f6;
-            --color-primary-dark: #2563eb;
-            --color-bg: #f9fafb;
-            --color-text: #1f2937;
-            --color-card-bg: #ffffff;
-            --color-border: #e5e7eb;
-            --color-danger: #ef4444;
-            --color-secondary: #6b7280; 
-            --font-stack: 'Inter', sans-serif;
+            --color-primary: #1da1f2; /* Twitter Blue */
+            --color-danger: #e0245e;
+            --color-success: #17bf63;
+            --color-text: #000000;
+            --color-secondary: #657786;
+            --color-bg: #f5f8fa; /* Light background */
+            --color-border: #ccd6dd;
+            --color-white: #ffffff;
         }
-
-        /* Dark Mode Toggle */
-        body.dark-mode {
-            --color-bg: #111827;
-            --color-text: #f9fafb;
-            --color-card-bg: #1f2937;
-            --color-border: #374151;
-            --color-secondary: #9ca3af; 
-        }
-
-        /* --- GLOBAL STYLES --- */
-        * { box-sizing: border-box; }
-        body {
-            font-family: var(--font-stack);
-            background-color: var(--color-bg);
-            color: var(--color-text);
+        body, html {
             margin: 0;
             padding: 0;
-            transition: background-color 0.3s, color 0.3s;
-            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            overflow-x: hidden;
+            height: 100%;
         }
         .container {
-            max-width: 1200px;
+            max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
+            padding-bottom: 70px; /* Space for the bottom nav */
         }
-
-        /* --- HEADER/NAVBAR --- */
-        header {
-            background-color: var(--color-card-bg);
-            border-bottom: 1px solid var(--color-border);
-            padding: 10px 0;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        /* --- LAYOUT & NAVIGATION --- */
+        #auth-view, #home-view, #profile-page-view, #chat-page-view, #notifications-view {
+            display: none;
+            min-height: calc(100vh - 60px); 
+        }
+        .header {
             position: sticky;
             top: 0;
-            z-index: 50;
-        }
-        .navbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 15px;
+            background-color: var(--color-white);
+            border-bottom: 1px solid var(--color-border);
+            z-index: 20;
+            height: 30px;
+            max-width: 600px;
+            margin: 0 auto;
         }
         .logo {
             font-size: 1.5rem;
-            font-weight: 700;
+            font-weight: bold;
             color: var(--color-primary);
-        }
-        .nav-links {
-            display: flex;
-            align-items: center;
-        }
-        
-        /* --- FORMS & BUTTONS --- */
-        .card {
-            background-color: var(--color-card-bg);
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-            margin: 50px auto;
-        }
-        #auth-view .card {
-            max-width: 400px;
-            margin: 10vh auto;
-        }
-        input[type="email"],
-        input[type="password"],
-        input[type="text"],
-        textarea,
-        .input-group {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid var(--color-border);
-            border-radius: 4px;
-            background-color: var(--color-bg);
-            color: var(--color-text);
-            transition: border-color 0.2s;
-        }
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background-color 0.2s, opacity 0.2s;
-        }
-        .btn-primary {
-            background-color: var(--color-primary);
-            color: white;
-        }
-        /* Style for the secondary button in the feed toggle */
-        .btn-secondary {
-            background-color: var(--color-card-bg); 
-            color: var(--color-text);
-            border: 1px solid var(--color-border);
         }
         .btn-icon {
             background: none;
             border: none;
-            color: var(--color-text);
-            font-size: 1.0rem;
-            padding: 5px 10px;
+            font-size: 1.2rem;
+            color: var(--color-secondary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
         }
-
-        /* --- SIDE DRAWER STYLES --- */
+        .btn-icon:hover {
+            background-color: var(--color-border);
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            background-color: var(--color-white);
+            border-top: 1px solid var(--color-border);
+            z-index: 50;
+        }
+        .nav-item {
+            cursor: pointer;
+            color: var(--color-secondary);
+            font-size: 1.5rem;
+            transition: color 0.2s;
+            padding: 5px 15px;
+        }
+        .nav-item.active {
+            color: var(--color-primary);
+        }
+        
+        /* --- SIDE DRAWER --- */
         #side-drawer {
             position: fixed;
             top: 0;
             left: 0;
-            width: 300px; 
+            width: 250px;
             height: 100%;
-            background-color: var(--color-card-bg);
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
-            transform: translateX(-100%); 
+            background-color: var(--color-white);
+            z-index: 100;
+            transform: translateX(-100%);
             transition: transform 0.3s ease-in-out;
-            z-index: 1500; 
-            padding: 15px;
-            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+            padding-top: 60px;
         }
         #side-drawer.open {
-            transform: translateX(0); 
+            transform: translateX(0);
         }
-        #drawer-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: 1400;
-        }
-        .drawer-links a,
-        .drawer-settings a,
-        .drawer-settings button {
+        .drawer-item {
+            padding: 15px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 1.1rem;
             display: flex;
             align-items: center;
-            padding: 12px 0;
-            text-decoration: none;
-            color: var(--color-text);
-            font-weight: 600;
-            font-size: 1.1rem;
-            cursor: pointer;
-            width: 100%; 
-            background: none;
+        }
+        .drawer-item i {
+            margin-right: 10px;
+            color: var(--color-primary);
+        }
+
+        /* --- FORMS & BUTTONS --- */
+        .card {
+            background-color: var(--color-white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: var(--color-white);
             border: none;
-            text-align: left;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #0c85d0;
+        }
+        .btn-secondary {
+            background-color: var(--color-secondary);
+            color: var(--color-white);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        input[type="email"], input[type="password"], textarea, select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 16px 0;
+            display: inline-block;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            box-sizing: border-box;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+        textarea {
+            resize: none;
         }
         
-        /* --- POST & PROFILE STYLES --- */
+        /* --- FEED STYLES --- */
+        .post-card {
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: var(--color-white);
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
         .post-avatar {
             width: 40px;
             height: 40px;
             border-radius: 50%;
             background-color: var(--color-primary);
-            margin-right: 10px;
+            color: var(--color-white);
             display: flex;
-            align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: 700;
-        }
-        .post-card {
-            background-color: var(--color-card-bg);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            border: 1px solid var(--color-border);
-            max-width: 600px;
-            width: 100%;
-            margin: 0 0 20px 0;
-        }
-        .post-header {
-            display: flex;
             align-items: center;
-            justify-content: space-between; 
-            margin-bottom: 10px;
+            font-weight: bold;
+            margin-right: 10px;
+            cursor: pointer;
         }
-        .post-header .post-info {
-            flex-grow: 1;
+        .post-author {
+            font-weight: bold;
+            cursor: pointer;
         }
-        .feed-column {
+        .post-content {
+            margin: 10px 0;
+        }
+        .post-actions {
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            justify-content: space-around;
+            border-top: 1px solid var(--color-border);
+            padding-top: 10px;
+            margin-top: 10px;
         }
-        .post-actions button {
+        .action-btn {
             background: none;
             border: none;
-            color: var(--color-text);
-            padding: 8px 10px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            margin-right: 5px;
+            color: var(--color-secondary);
+            cursor: pointer;
+            font-size: 0.9rem;
         }
-        .delete-post-btn {
+        .like-icon.liked {
             color: var(--color-danger);
-            margin-left: auto;
-            padding: 5px;
         }
-        
-        /* --- CHAT AND COMMENT MODAL STYLES --- */
+
+        /* --- FEED CONTROLS (Sticky) --- */
+        #feed-controls-sticky {
+            position: sticky;
+            top: 60px; 
+            background-color: var(--color-white);
+            padding: 10px 15px;
+            z-index: 10;
+            border-bottom: 1px solid var(--color-border);
+            width: 100%;
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .feed-tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--color-secondary);
+            border-bottom: 3px solid transparent;
+        }
+        .feed-tab.active {
+            color: var(--color-primary);
+            border-bottom: 3px solid var(--color-primary);
+        }
+
+        /* --- PROFILE PAGE --- */
+        #profile-info {
+            text-align: center;
+            padding: 20px;
+            background-color: var(--color-white);
+            border-bottom: 1px solid var(--color-border);
+            margin-bottom: 20px;
+        }
+        #profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--color-primary);
+            color: var(--color-white);
+            font-size: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 15px auto;
+        }
+        .profile-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            border-top: 1px solid var(--color-border);
+            padding-top: 15px;
+        }
+        .profile-stat {
+            font-weight: bold;
+            text-align: center;
+        }
+        .profile-stat span {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: normal;
+            color: var(--color-secondary);
+        }
+        #profile-actions {
+            margin-top: 15px;
+        }
+
+        /* --- COMMENTS VIEW (Full Page) --- */
         #comment-modal {
             display: none; 
             position: fixed; 
             top: 0; 
             left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0, 0, 0, 0.7); 
+            width: 100%; /* Make it full width */
+            height: 100%; /* Make it full height */
+            background: var(--color-white); 
             z-index: 2000; 
-            justify-content: center; 
+            overflow-y: scroll;
+        }
+        #comment-modal > .card {
+            width: 100%;
+            max-width: 600px; 
+            padding: 0px 20px 20px 20px;
+            min-height: 100%; 
+            border-radius: 0; 
+            box-shadow: none;
+            margin: 0 auto;
+        }
+        #comments-header {
+            position: sticky;
+            top: 0;
+            display: flex;
+            align-items: center;
+            background-color: var(--color-white);
+            border-bottom: 1px solid var(--color-border);
+            padding: 15px 0;
+            z-index: 10;
+        }
+        .comment-item-inner {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
         }
-        .chat-window-card {
-            height: 100%;
+
+        /* --- NOTIFICATION VIEW --- */
+        .notification-item {
+            padding: 15px;
+            border-bottom: 1px solid var(--color-border);
+            cursor: pointer;
+            transition: background-color 0.2s;
             display: flex;
-            flex-direction: column;
-            background-color: var(--color-card-bg);
-            border-radius: 8px 8px 0 0;
-            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
-            border: 1px solid var(--color-border);
+            align-items: center;
         }
+        .notification-item:hover {
+            background-color: var(--color-bg);
+        }
+        .notification-item.unread {
+            background-color: #e0f0ff; /* Light blue highlight */
+            border-left: 5px solid var(--color-primary);
+        }
+        .notification-icon {
+            font-size: 1.5rem;
+            color: var(--color-primary);
+            margin-right: 15px;
+        }
+        .notification-content {
+            flex-grow: 1;
+        }
+        .notification-content p {
+            margin: 0;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        .notification-time {
+            font-size: 0.8rem;
+            color: var(--color-secondary);
+            margin-top: 2px;
+        }
+
+        /* --- BACK BUTTON --- */
+        .back-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--color-text);
+            cursor: pointer;
+            padding: 0 10px 0 0;
+        }
+
     </style>
 </head>
 <body>
-    <nav id="side-drawer">
-        <div class="drawer-header">
-            <div id="drawer-profile-initials" class="post-avatar" style="width: 50px; height: 50px; font-size: 1.5rem;">J</div>
-            <h3 id="drawer-username">User Name</h3>
-            <p id="drawer-handle" style="color: #6b7280;">@handle</p>
-            <div class="follow-stats">
-                <span id="drawer-following-count">23 Following</span> 
-                <span id="drawer-followers-count">13 Followers</span>
-            </div>
-        </div>
-        <hr>
 
-        <div class="drawer-links">
-            <a href="#" onclick="navigateAndClose('profile-page-view')"><i class="fas fa-user"></i> Profile</a>
-            <a href="#" onclick="navigateAndClose('home-view')"><i class="fas fa-rss"></i> Feed</a>
-            <a href="#" onclick="navigateAndClose('chat-page-view')"><i class="fas fa-comment-dots"></i> Chat <span class="beta-badge">Beta</span></a>
+    <div id="auth-view" class="container">
+        <div style="text-align: center; padding-top: 100px;">
+            <div class="logo">Social App</div>
+            <h2>Join the Conversation</h2>
             
-            <a href="#" onclick="alert('Viewing notifications...')">
-                <i class="fas fa-bell"></i> Notifications 
-                <span id="notification-count" class="badge" style="position: static; margin-left: auto;">3</span>
-            </a>
-            
-            <a href="#" onclick="alert('Bookmarks feature coming soon!')"><i class="fas fa-bookmark"></i> Bookmarks</a>
-        </div>
-
-        <hr>
-        
-        <div class="drawer-settings">
-            <button class="settings-toggle">Settings & Support <i class="fas fa-chevron-down"></i></button>
-            <div class="settings-menu" style="display: none;">
-                <a href="#" onclick="alert('Help center opened.')">Help Center</a>
-                <a href="#" onclick="alert('Settings page opened.')">App Settings</a>
-                <a href="#" onclick="logout()">Logout</a>
-            </div>
-        </div>
-        <div style="margin-top: 30px; border-top: 1px solid var(--color-border); padding-top: 15px;">
-             <button class="btn-icon" id="drawer-theme-toggle" onclick="toggleDarkMode()" style="font-size: 1.2rem; margin-right: 10px;">
-                <i class="fas fa-moon"></i> Dark Mode
-            </button>
-        </div>
-    </nav>
-
-    <div id="drawer-overlay" onclick="toggleSideDrawer(false)" style="display: none;"></div>
-
-
-    <header>
-        <div class="navbar container">
-            <div class="logo">SociaLink</div>
-            <div class="nav-links">
-                <button class="btn-icon" id="theme-toggle" onclick="toggleDarkMode()">
-                    <i class="fas fa-moon"></i>
-                </button>
-                
-                <div id="drawer-toggle-area" style="display: none;">
-                    <button class="btn-icon" onclick="toggleSideDrawer(true)" style="margin-left: 10px;">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                </div>
-                
-                <div id="auth-controls">
-                    </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="container">
-        <div id="auth-view" class="view">
             <div class="card">
-                <h2>Welcome Back!</h2>
-                <div id="auth-error" style="color: var(--color-danger); margin-bottom: 10px;"></div>
-                
-                <input type="email" id="email" placeholder="Email" /><br />
-                <input type="password" id="password" placeholder="Password" /><br />
-                <input type="text" id="username" placeholder="Username (for Sign Up)" style="display: none;"/><br />
-                
-                <button class="btn-primary" id="signup-btn" onclick="handleAuth(true)">Sign Up</button>
-                <button class="btn-primary" id="login-btn" onclick="handleAuth(false)" style="display:none;">Login</button>
-                
-                <p style="margin-top: 20px; text-align: center;">
-                    <a href="#" onclick="toggleAuthMode()">Already have an account? Switch to Login</a>
-                </p>
+                <h3>Login</h3>
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button class="btn-primary" onclick="handleAuth(false)">Sign In</button>
             </div>
+
+            <div class="card">
+                <h3>Sign Up</h3>
+                <input type="text" id="signup-username" placeholder="Username (Display Name)" required>
+                <input type="email" id="signup-email" placeholder="Email" required>
+                <input type="password" id="signup-password" placeholder="Password" required>
+                <button class="btn-primary" onclick="handleAuth(true)">Sign Up</button>
+            </div>
+            <p id="auth-error" style="color: var(--color-danger);"></p>
+        </div>
+    </div>
+
+    <div id="home-view" style="display: none;">
+        
+        <div class="header">
+            <button class="btn-icon" onclick="toggleSideDrawer(true)"><i class="fas fa-bars"></i></button>
+            <div class="logo">Social App</div>
+            <button class="btn-icon" onclick="navigateAndClose('notifications-view')"><i class="fas fa-bell"></i></button>
         </div>
 
-        <div id="home-view" class="view page-content" style="display: none;">
-            <div class="feed-column">
-                <div class="card" style="margin: 0 0 20px 0; max-width: 600px; width: 100%;">
-                    <h4>What's on your mind, <span id="current-user-name"></span>?</h4>
-                    <textarea id="post-text" placeholder="Share a thought..." rows="3"></textarea>
-                    <input type="file" id="post-media" accept="image/*,video/*" style="margin-bottom: 10px;">
-                    <button class="btn-primary" onclick="createPost()">Post</button>
-                </div>
-
-                <div style="margin-top: 30px; align-self: flex-start; margin-left: auto; margin-right: auto; max-width: 600px; width: 100%;">
-                    <button id="feed-btn-following" class="btn-primary" onclick="switchFeedView('following')" style="margin-right: 10px;">Following</button>
-                    <button id="feed-btn-explore" class="btn-secondary" onclick="switchFeedView('explore')">Explore</button>
-                    <h3 id="feed-title">Following Feed</h3>
-                </div>
-                
-                </div>
+        <div id="feed-controls-sticky">
+            <div>
+                <span id="following-tab" class="feed-tab active" onclick="switchFeed('following')">Following</span>
+                <span id="explore-tab" class="feed-tab" onclick="switchFeed('explore')">Explore</span>
+            </div>
+            <button class="btn-icon" onclick="refreshActiveFeed()"><i class="fas fa-sync-alt"></i></button>
         </div>
 
-        <div id="profile-page-view" class="view page-content" style="display: none;">
-            <div id="profile-view" class="card" style="max-width: 600px; margin: 20px auto;">
-                <h3>Profile</h3>
-                <div class="profile-picture-lg" id="profile-initials">J</div>
-                <h2 id="profile-display-name">Loading...</h2>
-                <p id="profile-email" style="color: #6b7280;"></p>
-                <p id="profile-bio">Bio: Loading...</p>
-                
-                <div class="follow-stats" style="margin-bottom: 20px;">
-                    <span id="profile-following-count">0 Following</span> 
-                    <span id="profile-followers-count">0 Followers</span>
-                </div>
-
-                <div id="profile-button-area">
-                    </div>
-
-                <div id="profile-edit-form" style="display: none; margin-top: 20px;" class="edit-form-group">
-                    <hr style="margin: 20px 0; border-color: var(--color-border);">
-                    <h4>Edit Details</h4>
-                    <label for="edit-name">Display Name</label>
-                    <input type="text" id="edit-name">
-                    <label for="edit-bio">Bio</label>
-                    <textarea id="edit-bio" rows="3"></textarea>
-                    <button class="btn-primary" onclick="updateProfile()">Save Changes</button>
-                    <button class="btn-secondary" onclick="toggleEditProfile(false)">Cancel</button>
-                </div>
+        <div class="container">
+            <div id="new-post-area" class="card">
+                <textarea id="post-content" placeholder="What's happening?" rows="3"></textarea>
+                <button class="btn-primary" onclick="createPost()">Post</button>
             </div>
+            
+            <div id="feed-container">
+                </div>
+            <p id="feed-message" style="text-align: center; color: var(--color-secondary); padding: 20px;">Loading posts...</p>
         </div>
+    </div>
 
-        <div id="chat-page-view" class="view page-content" style="display: none;">
-            <div id="chat-list-container" class="card" style="max-width: 500px; margin: 0 auto; padding: 20px;">
-                <h3>Active Chats <i class="fas fa-comment-dots"></i></h3>
-                <div class="chat-list">
-                    <div class="chat-item" onclick="loadChat('Alex_The_Dev')">
-                        <div class="post-avatar">A</div>
-                        <div class="chat-info">
-                            <span class="chat-username">Alex_The_Dev</span>
-                            <p class="last-message">Starting the foundation...</p>
-                        </div>
-                        <span class="chat-time">2m</span>
-                    </div>
-                    <div class="chat-item" onclick="loadChat('Marketing_Mgr')">
-                        <div class="post-avatar" style="background-color: #f59e0b;">M</div>
-                        <div class="chat-info">
-                            <span class="chat-username">Marketing_Mgr</span>
-                            <p class="last-message">Sounds great!</p>
-                        </div>
-                        <span class="chat-time">1h</span>
-                    </div>
-                    <p style="margin-top: 20px; font-size: 0.9em; color: #6b7280;">(These are mock users, click to start real-time chat)</p>
-                </div>
-            </div>
-        </div>
-
-        <div id="chat-window-modal" style="display: none;">
-            <div class="chat-window-card">
-                <div class="chat-header-bar">
-                    <span id="chat-recipient-name"></span>
-                    <button class="btn-icon" onclick="closeChat()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                
-                <div id="chat-messages" class="chat-messages-container">
-                    </div>
-                
-                <div class="chat-input-area">
-                    <input type="text" id="chat-input" placeholder="Type a message..." />
-                    <button class="btn-primary" onclick="sendMessage()">Send</button>
-                </div>
-            </div>
+    <div id="profile-page-view" style="display: none;">
+        <div class="header">
+            <button class="back-button" onclick="history.back()"><i class="fas fa-arrow-left"></i></button>
+            <div class="logo" id="profile-header-title">Profile</div>
+            <span></span>
         </div>
         
-        <div id="comment-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 2000; justify-content: center; align-items: center;">
-            <div class="card" style="width: 90%; max-width: 500px; padding: 20px; max-height: 80vh; display: flex; flex-direction: column;">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); padding-bottom: 10px; margin-bottom: 10px;">
-                    <h4 id="comment-modal-title">Comments on Post by User</h4>
-                    <button class="btn-icon" onclick="closeCommentModal()"><i class="fas fa-times"></i></button>
-                </div>
-                
-                <div id="comments-list" style="flex-grow: 1; overflow-y: auto; margin-bottom: 15px;">
-                    <p style="color: #6b7280; text-align: center;">Loading comments...</p>
-                </div>
-
-                <div class="comment-input-area" style="display: flex;">
-                    <input type="text" id="comment-input" placeholder="Add a comment..." style="flex-grow: 1; margin-bottom: 0;">
-                    <button class="btn-primary" onclick="submitComment()">Post</button>
-                </div>
-                <input type="hidden" id="active-post-id" />
+        <div id="profile-info">
+            <div id="profile-avatar">P</div>
+            <h3 id="profile-display-name">Loading Name...</h3>
+            <p id="profile-email" style="color: var(--color-secondary); font-size: 0.9rem;"></p>
+            <p id="profile-bio">Loading bio...</p>
+            
+            <div id="profile-actions">
+                <button id="edit-profile-btn" class="btn-secondary" onclick="toggleEditForm(true)" style="display: none;">Edit Profile</button>
+                <button id="follow-button" class="btn-primary" onclick="toggleFollow()" style="display: none;">Follow</button>
+            </div>
+            
+            <div class="profile-stats">
+                <div class="profile-stat"><span id="profile-following-count">0</span><span>Following</span></div>
+                <div class="profile-stat"><span id="profile-followers-count">0</span><span>Followers</span></div>
             </div>
         </div>
 
-    </main>
+        <div id="profile-edit-form" class="container" style="display: none; padding: 20px; background-color: var(--color-white);">
+            <h3>Edit Profile</h3>
+            <input type="text" id="edit-name" placeholder="Display Name">
+            <textarea id="edit-bio" placeholder="Tell us about yourself" rows="3"></textarea>
+            
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label for="edit-email-visibility" style="display: block; margin-bottom: 5px;">Email Visibility</label>
+                <select id="edit-email-visibility" style="width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; background-color: var(--color-bg); color: var(--color-text);">
+                    <option value="public">Public (Everyone)</option>
+                    <option value="followers">Followers Only</option>
+                    <option value="private">Private (Only Me)</option>
+                </select>
+            </div>
+            
+            <button class="btn-primary" onclick="updateProfile()">Save Changes</button>
+            <button class="btn-secondary" onclick="toggleEditForm(false)">Cancel</button>
+        </div>
+
+        <div id="profile-posts-container" class="container">
+            </div>
+    </div>
+
+    <div id="notifications-view" style="display: none;">
+        <div class="header">
+            <button class="back-button" onclick="history.back()"><i class="fas fa-arrow-left"></i></button>
+            <div class="logo">Notifications</div>
+            <span></span>
+        </div>
+        <div class="container" id="notifications-list">
+            <p style="text-align: center; color: var(--color-secondary); padding: 20px;">No new notifications.</p>
+        </div>
+    </div>
+
+    <div id="chat-page-view" style="display: none;" class="container">
+        <div class="header">
+            <button class="back-button" onclick="history.back()"><i class="fas fa-arrow-left"></i></button>
+            <div class="logo">Chat (Placeholder)</div>
+            <span></span>
+        </div>
+        <h3 style="text-align: center; padding-top: 50px;">Direct Messaging Coming Soon!</h3>
+    </div>
+
+
+    <div id="side-drawer">
+        <div class="drawer-item" id="drawer-profile" onclick="navigateAndClose('profile-page-view', auth.currentUser.uid)">
+            <i class="fas fa-user"></i> My Profile
+        </div>
+        <div class="drawer-item" onclick="navigateAndClose('chat-page-view')">
+            <i class="fas fa-comment-alt"></i> Messages
+        </div>
+        <div class="drawer-item" onclick="navigateAndClose('notifications-view')">
+            <i class="fas fa-bell"></i> Notifications
+        </div>
+        <div class="drawer-item" onclick="logout()">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </div>
+    </div>
+
+    <div id="comment-modal">
+        <div class="card">
+            <div id="comments-header">
+                <button class="back-button" onclick="closeCommentModal()"><i class="fas fa-arrow-left"></i></button>
+                <h3 style="margin-left: 10px;">Comments</h3>
+            </div>
+            
+            <div id="comments-list" style="margin-bottom: 20px; padding-top: 10px;">
+                </div>
+            
+            <div id="comment-input-area" style="position: sticky; bottom: 0; background: var(--color-white); padding: 15px 0; border-top: 1px solid var(--color-border);">
+                <textarea id="comment-text" placeholder="Write a comment..." rows="2" style="margin-bottom: 5px;"></textarea>
+                <button class="btn-primary" id="post-comment-btn" style="width: 100%;" onclick="postComment()">Post Comment</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="navigateAndClose('home-view')" data-view="home-view"><i class="fas fa-home"></i></div>
+        <div class="nav-item" onclick="navigateAndClose('notifications-view')" data-view="notifications-view"><i class="fas fa-bell"></i></div>
+        <div class="nav-item" onclick="navigateAndClose('chat-page-view')" data-view="chat-page-view"><i class="fas fa-comment-dots"></i></div>
+        <div class="nav-item" onclick="navigateAndClose('profile-page-view', auth.currentUser.uid)" data-view="profile-page-view"><i class="fas fa-user"></i></div>
+    </div>
+
 
     <script>
-        // --- 1. FIREBASE INITIALIZATION AND CONFIG ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0", 
-            authDomain: "social-media-platform-b3242.firebaseapp.com",
-            projectId: "social-media-platform-b3242",
-            storageBucket: "social-media-platform-b3242.appspot.com",
-            messagingSenderId: "85114084944",
-            appId: "1:85114084944:web:b3ef84305bc8c04dabfb55",
-            measurementId: "G-7L2K0ZDT32"
+        // Your Firebase config object goes here
+        var firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
-        const app = firebase.initializeApp(firebaseConfig);
-        const auth = app.auth();
-        const db = app.firestore();
-        
-        // --- 2. GLOBAL STATE & UI REFERENCES ---
-        let isSigningUp = true; 
-        let activeChatId = null; 
-        let activeRecipientUID = null;
-        let unsubscribeFromMessages = null; 
-        let unsubscribeFromFeed = null; 
-        let unsubscribeFromComments = null; 
-        let currentFeedView = 'following'; // NEW: State variable for feed toggle
-        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // --- GLOBAL VARIABLES & CACHE ---
         const authView = document.getElementById('auth-view');
-        const usernameInput = document.getElementById('username');
-        const authError = document.getElementById('auth-error');
-        const signupBtn = document.getElementById('signup-btn');
-        const loginBtn = document.getElementById('login-btn');
         const homeView = document.getElementById('home-view');
         const profilePageView = document.getElementById('profile-page-view');
         const chatPageView = document.getElementById('chat-page-view');
-        const sideDrawer = document.getElementById('side-drawer');
-        const drawerToggleArea = document.getElementById('drawer-toggle-area');
-        const drawerOverlay = document.getElementById('drawer-overlay');
-        const settingsToggle = document.querySelector('.settings-toggle');
-        const settingsMenu = document.querySelector('.settings-menu');
+        const notificationsView = document.getElementById('notifications-view');
 
-        const MOCK_RECIPIENTS = {
-            'Alex_The_Dev': 'ALEX-DEV-UID-12345', 
-            'Marketing_Mgr': 'MARKETING-MGR-UID-67890'
-        };
+        const feedContainer = document.getElementById('feed-container');
+        const feedMessage = document.getElementById('feed-message');
 
-        // --- 3. THEME SWITCHER ---
-        const themeToggle = document.getElementById('theme-toggle');
-        const drawerThemeToggle = document.getElementById('drawer-theme-toggle');
+        let currentFeedView = 'following'; // 'following' or 'explore'
+        let currentUserId = null;
+        let currentProfileTargetId = null; 
+        let currentCommentPostId = null;
 
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            const isDark = document.body.classList.contains('dark-mode');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            
-            const iconClass = isDark ? 'fas fa-sun' : 'fas fa-moon';
-            themeToggle.innerHTML = `<i class="${iconClass}"></i>`;
-            if (drawerThemeToggle) {
-                drawerThemeToggle.innerHTML = `<i class="${iconClass}"></i> Dark Mode`;
-            }
-        }
+        let unsubscribeFromFeed = null;
+        let unsubscribeFromComments = null;
+        let unsubscribeFromNotifications = null;
         
-        document.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('theme') === 'dark') {
-                document.body.classList.add('dark-mode');
-            }
-            if (themeToggle) {
-                toggleDarkMode(); 
-                toggleDarkMode(); 
+        let userCache = {}; // Simple cache for user data to avoid redundant reads
+
+        // --- 1. AUTHENTICATION ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUserId = user.uid;
+                navigateAndClose('home-view');
+                // Hide auth error on successful login
+                document.getElementById('auth-error').textContent = ''; 
+            } else {
+                currentUserId = null;
+                showView('auth-view');
             }
         });
-        
-        if (settingsToggle) {
-            settingsToggle.addEventListener('click', () => {
-                settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
-            });
-        }
 
+        async function handleAuth(isSignUp) {
+            const email = isSignUp ? document.getElementById('signup-email').value : document.getElementById('login-email').value;
+            const password = isSignUp ? document.getElementById('signup-password').value : document.getElementById('login-password').value;
+            const username = isSignUp ? document.getElementById('signup-username').value : '';
+            const errorElement = document.getElementById('auth-error');
+            errorElement.textContent = '';
 
-        // --- 4. SPA NAVIGATION & DRAWER CONTROL ---
-        
-        function showView(viewId) {
-            authView.style.display = 'none';
-            homeView.style.display = 'none';
-            profilePageView.style.display = 'none';
-            chatPageView.style.display = 'none';
-            document.getElementById(viewId).style.display = 'block';
-        }
-        
-        function toggleSideDrawer(open) {
-            if (open) {
-                sideDrawer.classList.add('open');
-                drawerOverlay.style.display = 'block';
-            } else {
-                sideDrawer.classList.remove('open');
-                drawerOverlay.style.display = 'none';
-            }
-        }
-        
-        function navigateAndClose(viewId) {
-            showView(viewId);
-            toggleSideDrawer(false);
-            
-            // Special handling for the Profile View to ensure it loads the current user's data
-            if (viewId === 'profile-page-view' && auth.currentUser) {
-                loadProfileData(auth.currentUser.uid); 
-            }
-        }
-
-        function toggleAuthMode() {
-            isSigningUp = !isSigningUp;
-            const link = document.querySelector('#auth-view p a');
-            
-            if (isSigningUp) {
-                document.querySelector('#auth-view h2').innerText = 'Join SociaLink!';
-                link.innerText = 'Already have an account? Switch to Login';
-                usernameInput.style.display = 'block';
-                signupBtn.style.display = 'block';
-                loginBtn.style.display = 'none'; 
-            } else {
-                document.querySelector('#auth-view h2').innerText = 'Welcome Back!';
-                link.innerText = 'Need an account? Switch to Sign Up';
-                usernameInput.style.display = 'none';
-                signupBtn.style.display = 'none'; 
-                loginBtn.style.display = 'block';
-            }
-        }
-        toggleAuthMode();
-
-        // --- 5. AUTHENTICATION & CORE PROFILE LOGIC ---
-
-        async function handleAuth(isSignUpAction) {
-            const email = document.getElementById("email").value;
-            const password = document.getElementById("password").value;
-            const username = document.getElementById("username").value;
-            authError.innerText = '';
-            
             try {
-                if (isSignUpAction) {
-                    if (!username || password.length < 6) {
-                        authError.innerText = "Please provide a username and a password of at least 6 characters.";
-                        return;
-                    }
+                if (isSignUp) {
                     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                    const user = userCredential.user;
-
-                    await user.updateProfile({ displayName: username });
-                    await db.collection('users').doc(user.uid).set({
+                    const uid = userCredential.user.uid;
+                    
+                    // Create Firestore user document
+                    await db.collection('users').doc(uid).set({
                         displayName: username,
-                        email: user.email,
-                        bio: `Hey there! I'm new to SociaLink.`,
-                        followersCount: 0, 
-                        followingCount: 0, 
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        email: email,
+                        bio: '',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        followersCount: 0,
+                        followingCount: 0,
+                        emailVisibility: 'private', // NEW: Default privacy setting
+                        lastActivity: firebase.firestore.FieldValue.serverTimestamp()
                     });
+
+                    // Update Auth profile (optional but good for consistency)
+                    await userCredential.user.updateProfile({
+                        displayName: username
+                    });
+
                 } else {
                     await auth.signInWithEmailAndPassword(email, password);
                 }
             } catch (error) {
-                authError.innerText = `Authentication Error: ${error.message}`;
+                console.error("Auth Error:", error);
+                errorElement.textContent = `Error: ${error.message}`;
             }
         }
 
         function logout() {
-            auth.signOut().then(() => {
-                showView('auth-view');
-                drawerToggleArea.style.display = 'none'; 
-                if (unsubscribeFromFeed) {
-                    unsubscribeFromFeed();
-                    unsubscribeFromFeed = null;
-                }
-            }).catch(error => {
-                alert("Logout Error: " + error.message);
-            });
-        }
-        
-        // Function to load data specifically for the side drawer
-        async function loadDrawerProfile(uid) {
-            const doc = await db.collection('users').doc(uid).get();
-            if (doc.exists) {
-                const data = doc.data();
-                const displayName = data.displayName || 'User';
-                const initial = displayName.charAt(0).toUpperCase();
-                const handle = `@${displayName.toLowerCase().replace(/\s/g, '_').substring(0, 15)}`;
-
-                document.getElementById('drawer-username').innerText = displayName;
-                document.getElementById('drawer-handle').innerText = handle;
-                document.getElementById('drawer-profile-initials').innerText = initial;
-                document.getElementById('drawer-following-count').innerText = `${data.followingCount || 0} Following`;
-                document.getElementById('drawer-followers-count').innerText = `${data.followersCount || 0} Followers`;
-            }
+            auth.signOut();
+            toggleSideDrawer(false);
+            window.location.hash = ''; // Clear hash on logout
+            viewHistory = ['auth-view']; // Reset history
         }
 
-        // Function to load data for the main profile view AND check follow status
-        async function loadProfileData(targetUserId) {
-            const currentUserId = auth.currentUser.uid;
-
-            // 1. Fetch target user's data
-            const targetDoc = await db.collection('users').doc(targetUserId).get();
-            if (!targetDoc.exists) {
-                document.getElementById('profile-display-name').innerText = "User Not Found";
-                return;
-            }
-            const data = targetDoc.data();
-            
-            // 2. Check follow status (only if viewing another user's profile)
-            let isFollowing = false;
-            if (currentUserId !== targetUserId) {
-                const followDoc = await db.collection('users').doc(currentUserId).collection('following').doc(targetUserId).get();
-                isFollowing = followDoc.exists;
-            }
-            
-            // 3. Update the UI
-            const displayName = data.displayName || 'User';
-            const initial = displayName.charAt(0).toUpperCase();
-
-            document.getElementById('profile-display-name').innerText = displayName;
-            document.getElementById('profile-email').innerText = data.email || '';
-            document.getElementById('profile-bio').innerText = `Bio: ${data.bio || 'Tell us about yourself!'}`;
-            document.getElementById('profile-initials').innerText = initial;
-            
-            document.getElementById('profile-following-count').innerText = `${data.followingCount || 0} Following`;
-            document.getElementById('profile-followers-count').innerText = `${data.followersCount || 0} Followers`;
-
-            // Update the Edit/Follow Button Area
-            const profileButtonArea = document.getElementById('profile-button-area');
-            
-            if (currentUserId === targetUserId) {
-                // Logged-in user viewing own profile
-                profileButtonArea.innerHTML = `<button class="btn-primary" onclick="toggleEditProfile(true)">Edit Profile</button>`;
-                document.getElementById('profile-edit-form').style.display = 'none'; 
-                // Pre-fill edit form
-                document.getElementById('edit-name').value = displayName;
-                document.getElementById('edit-bio').value = data.bio || '';
-            } else {
-                // Logged-in user viewing another person's profile
-                const buttonText = isFollowing ? 'Unfollow' : 'Follow';
-                const buttonStyle = isFollowing ? 'background-color: var(--color-danger);' : '';
-                
-                profileButtonArea.innerHTML = `
-                    <button class="btn-primary" style="${buttonStyle}" onclick="toggleFollow('${targetUserId}', ${isFollowing})">
-                        <i class="fas fa-user-${isFollowing ? 'minus' : 'plus'}"></i> ${buttonText}
-                    </button>
-                `;
-                document.getElementById('profile-edit-form').style.display = 'none'; 
-            }
+        // --- 2. SIDE DRAWER ---
+        function toggleSideDrawer(open) {
+            document.getElementById('side-drawer').classList.toggle('open', open);
         }
-
-
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                drawerToggleArea.style.display = 'block';
-                showView('home-view');
-                
-                // Load info for both the drawer and the main profile page
-                loadProfileData(user.uid); 
-                loadDrawerProfile(user.uid); 
-                
-                document.getElementById('current-user-name').innerText = user.displayName;
-
-                // Load the default feed view
-                switchFeedView(currentFeedView); 
-            } else {
-                drawerToggleArea.style.display = 'none';
-                showView('auth-view');
-                if (unsubscribeFromFeed) {
-                    unsubscribeFromFeed();
-                    unsubscribeFromFeed = null;
-                }
+        // Close drawer if user clicks outside of it
+        document.body.addEventListener('click', (event) => {
+            const drawer = document.getElementById('side-drawer');
+            const drawerBtn = document.querySelector('.fa-bars');
+            if (drawer.classList.contains('open') && !drawer.contains(event.target) && !drawerBtn.contains(event.target)) {
+                toggleSideDrawer(false);
             }
         });
 
 
-        // --- 6. PROFILE EDITING & FOLLOW LOGIC ---
-        
-        function toggleEditProfile(show) {
+        // --- 3. USER CACHE ---
+        async function getUserData(uid) {
+            if (userCache[uid]) {
+                return userCache[uid];
+            }
+            try {
+                const doc = await db.collection('users').doc(uid).get();
+                if (doc.exists) {
+                    userCache[uid] = doc.data();
+                    return userCache[uid];
+                }
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+            }
+            return { displayName: 'User Not Found' };
+        }
+
+        // --- 4. SPA NAVIGATION & HISTORY (UPDATED) ---
+        let viewHistory = ['auth-view']; // Start with auth
+
+        function showView(viewId, isBackNavigation = false) {
+            // Hide all views
+            authView.style.display = 'none';
+            homeView.style.display = 'none';
+            profilePageView.style.display = 'none';
+            chatPageView.style.display = 'none';
+            notificationsView.style.display = 'none';
+
+            // Show the requested view
+            document.getElementById(viewId).style.display = 'block';
+
+            // Update bottom nav active state
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-view') === viewId) {
+                    item.classList.add('active');
+                }
+            });
+
+            if (!isBackNavigation) {
+                // Update history for pushState or initial load
+                if (viewHistory[viewHistory.length - 1] !== viewId) {
+                    viewHistory.push(viewId);
+                }
+                // Use browser history API to manage back button (optional, but robust)
+                // history.pushState({ view: viewId }, viewId, `#${viewId}`); // Disabled to prevent duplicate history entries
+            }
+        }
+
+        // Handler for custom navigation (buttons/links)
+        function navigateAndClose(viewId, targetUserId = null) {
+            showView(viewId);
+            toggleSideDrawer(false);
+            
+            if (viewId === 'profile-page-view' && auth.currentUser) {
+                currentProfileTargetId = targetUserId || auth.currentUser.uid;
+                loadProfileData(currentProfileTargetId); 
+            } else if (viewId === 'notifications-view' && auth.currentUser) {
+                loadNotifications();
+            } else if (viewId === 'home-view' && auth.currentUser) {
+                // Ensure feed is loaded when returning to home
+                if (feedContainer.children.length === 0) {
+                     switchFeed(currentFeedView);
+                }
+            }
+        }
+
+        // NEW: Listen for the browser's back button
+        window.onpopstate = function(event) {
+            const currentHash = window.location.hash.substring(1); // Get viewId from hash
+
+            if (auth.currentUser) {
+                if (currentHash && document.getElementById(currentHash)) {
+                    showView(currentHash, true); 
+                    // Re-run the view specific load logic
+                    if (currentHash === 'profile-page-view') {
+                        loadProfileData(currentProfileTargetId || auth.currentUser.uid);
+                    } else if (currentHash === 'notifications-view') {
+                        loadNotifications();
+                    }
+                } else {
+                    // Default to home if hash is invalid
+                    showView('home-view', true);
+                }
+            } else {
+                // Stay on auth view if logged out
+                showView('auth-view', true);
+            }
+        };
+
+
+        // --- 5. PROFILE PAGE LOGIC (UPDATED WITH FOLLOW BACK & EMAIL PRIVACY) ---
+        async function checkFollowStatus(targetUserId) {
+            if (!auth.currentUser) return false;
+            const currentUserId = auth.currentUser.uid;
+            
+            const doc = await db.collection('users').doc(currentUserId)
+                .collection('following').doc(targetUserId).get();
+            return doc.exists;
+        }
+
+        // NEW: Check if the target user is following the current user
+        async function checkIfTargetFollowsMe(targetUserId) {
+            if (!auth.currentUser) return false;
+            const currentUserId = auth.currentUser.uid;
+            
+            try {
+                // Check the target user's 'following' subcollection for the current user's UID
+                const docRef = db.collection('users').doc(targetUserId).collection('following').doc(currentUserId);
+                const doc = await docRef.get();
+                return doc.exists;
+            } catch (error) {
+                console.error("Error checking if target follows me:", error);
+                return false;
+            }
+        }
+
+        async function loadProfileData(targetUserId) {
+            if (!auth.currentUser) return;
+
+            const currentUserId = auth.currentUser.uid;
+            const isOwner = currentUserId === targetUserId;
+            currentProfileTargetId = targetUserId; // Set global ID for use in toggleFollow
+
+            // Show/Hide Edit button and Follow button based on ownership
+            document.getElementById('edit-profile-btn').style.display = isOwner ? 'block' : 'none';
+            document.getElementById('follow-button').style.display = isOwner ? 'none' : 'block';
+            document.getElementById('profile-edit-form').style.display = 'none';
+            document.getElementById('profile-posts-container').style.display = 'block';
+
+            // --- FOLLOW BUTTON LOGIC ---
+            if (!isOwner) {
+                const isFollowing = await checkFollowStatus(targetUserId);
+                const targetFollowsMe = await checkIfTargetFollowsMe(targetUserId); // NEW Check
+
+                const followBtn = document.getElementById('follow-button');
+                
+                if (isFollowing) {
+                    followBtn.textContent = 'Unfollow';
+                    followBtn.classList.remove('btn-primary');
+                    followBtn.classList.add('btn-secondary');
+                } else {
+                    if (targetFollowsMe) {
+                         followBtn.textContent = 'Follow Back'; // NEW TEXT
+                    } else {
+                         followBtn.textContent = 'Follow';
+                    }
+                    followBtn.classList.remove('btn-secondary');
+                    followBtn.classList.add('btn-primary');
+                }
+            }
+
+            // --- DATA LOADING ---
+            try {
+                const targetDoc = await db.collection('users').doc(targetUserId).get();
+                if (!targetDoc.exists) {
+                    console.error("User profile not found.");
+                    return;
+                }
+
+                const data = targetDoc.data();
+                const displayName = data.displayName || 'Anonymous';
+                const bio = data.bio || 'No bio yet.';
+                const followersCount = data.followersCount || 0;
+                const followingCount = data.followingCount || 0;
+                const emailVisibility = data.emailVisibility || 'private';
+
+                // Update profile view elements
+                document.getElementById('profile-display-name').textContent = displayName;
+                document.getElementById('profile-bio').textContent = bio;
+                document.getElementById('profile-followers-count').textContent = followersCount;
+                document.getElementById('profile-following-count').textContent = followingCount;
+                document.getElementById('profile-avatar').textContent = displayName.charAt(0).toUpperCase();
+
+                // Handle Email Visibility Logic (UPDATED)
+                let displayEmail = '';
+                if (emailVisibility === 'public') {
+                    displayEmail = data.email;
+                } else if (emailVisibility === 'followers') {
+                    const isFollowingTarget = await checkFollowStatus(targetUserId);
+                    if (isFollowingTarget || isOwner) {
+                        displayEmail = data.email;
+                    } else {
+                        displayEmail = 'Email visible to followers';
+                    }
+                } else { // private
+                    if (isOwner) {
+                        displayEmail = data.email; 
+                    } else {
+                        displayEmail = 'Email is private';
+                    }
+                }
+                document.getElementById('profile-email').textContent = displayEmail;
+
+                // Pre-fill edit form (only if owner)
+                if (isOwner) {
+                    document.getElementById('edit-name').value = displayName;
+                    document.getElementById('edit-bio').value = data.bio || '';
+                    document.getElementById('edit-email-visibility').value = emailVisibility; // NEW: Pre-fill visibility
+                }
+                
+                // Load posts for the profile
+                loadUserPosts(targetUserId);
+
+            } catch (error) {
+                console.error("Error loading profile data:", error);
+            }
+        }
+
+        function toggleEditForm(show) {
             document.getElementById('profile-edit-form').style.display = show ? 'block' : 'none';
+            document.getElementById('profile-posts-container').style.display = show ? 'none' : 'block';
+            document.getElementById('profile-info').style.display = show ? 'none' : 'block';
         }
 
         async function updateProfile() {
+            if (!auth.currentUser) return;
             const uid = auth.currentUser.uid;
+
             const newName = document.getElementById('edit-name').value.trim();
             const newBio = document.getElementById('edit-bio').value.trim();
+            const newVisibility = document.getElementById('edit-email-visibility').value; // NEW: Get visibility
 
-            if (!newName) {
-                alert("Display Name cannot be empty.");
+            if (newName.length < 2) {
+                alert('Display name must be at least 2 characters.');
                 return;
             }
 
@@ -737,111 +873,384 @@
                 // 1. Update Firestore user document
                 await db.collection('users').doc(uid).update({
                     displayName: newName,
-                    bio: newBio
+                    bio: newBio,
+                    emailVisibility: newVisibility // NEW: Save visibility
                 });
-                
+
                 // 2. Update Firebase Auth profile
-                await auth.currentUser.updateProfile({ displayName: newName });
-                
-                alert("Profile updated successfully!");
-                toggleEditProfile(false);
-                loadProfileData(uid); 
-                loadDrawerProfile(uid); 
+                await auth.currentUser.updateProfile({
+                    displayName: newName
+                });
+
+                alert('Profile updated successfully!');
+                toggleEditForm(false);
+                loadProfileData(uid); // Reload the profile view
             } catch (error) {
-                alert("Error updating profile: " + error.message);
+                console.error("Error updating profile:", error);
+                alert('Failed to update profile.');
             }
         }
-        
-        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW
-        async function toggleFollow(targetUserId, isCurrentlyFollowing) {
-            if (!auth.currentUser || auth.currentUser.uid === targetUserId) return;
 
-            const currentUserId = auth.currentUser.uid;
-            const batch = db.batch();
 
-            // 1. References for the two users and their relationship documents
-            const currentUserRef = db.collection('users').doc(currentUserId);
-            const targetUserRef = db.collection('users').doc(targetUserId);
-            const followingRef = db.collection('users').doc(currentUserId).collection('following').doc(targetUserId);
-            const followersRef = db.collection('users').doc(targetUserId).collection('followers').doc(currentUserId);
+        // --- 6. FOLLOW/UNFOLLOW LOGIC (UPDATED) ---
+        async function toggleFollow() {
+            if (!auth.currentUser || !currentProfileTargetId || auth.currentUser.uid === currentProfileTargetId) return;
 
-            if (isCurrentlyFollowing) {
-                // --- UNFOLLOW OPERATION ---
-                batch.delete(followingRef);
-                batch.delete(followersRef);
-                batch.update(currentUserRef, { followingCount: firebase.firestore.FieldValue.increment(-1) });
-                batch.update(targetUserRef, { followersCount: firebase.firestore.FieldValue.increment(-1) });
-                
-            } else {
-                // --- FOLLOW OPERATION ---
-                batch.set(followingRef, { followedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                batch.set(followersRef, { followedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                batch.update(currentUserRef, { followingCount: firebase.firestore.FieldValue.increment(1) });
-                batch.update(targetUserRef, { followersCount: firebase.firestore.FieldValue.increment(1) });
-            }
+            const uid = auth.currentUser.uid;
+            const targetId = currentProfileTargetId;
+            const isFollowing = await checkFollowStatus(targetId);
+
+            const userRef = db.collection('users').doc(uid);
+            const targetRef = db.collection('users').doc(targetId);
+
+            const myFollowingRef = userRef.collection('following').doc(targetId);
+            const targetFollowersRef = targetRef.collection('followers').doc(uid);
 
             try {
-                await batch.commit();
-                console.log("Follow status updated successfully!");
-                // Reload the profile to update the button and counts
-                loadProfileData(targetUserId); 
-                loadDrawerProfile(currentUserId); 
-                // Reload the feed after following/unfollowing
-                if(currentFeedView === 'following') {
-                    loadFeed(); 
-                }
+                await db.runTransaction(async (transaction) => {
+                    const myDoc = await transaction.get(userRef);
+                    const targetDoc = await transaction.get(targetRef);
+
+                    if (!myDoc.exists || !targetDoc.exists) throw "User not found!";
+
+                    if (isFollowing) {
+                        // UNFOLLOW
+                        transaction.delete(myFollowingRef);
+                        transaction.delete(targetFollowersRef);
+
+                        transaction.update(userRef, { followingCount: firebase.firestore.FieldValue.increment(-1) });
+                        transaction.update(targetRef, { followersCount: firebase.firestore.FieldValue.increment(-1) });
+
+                    } else {
+                        // FOLLOW / FOLLOW BACK
+                        transaction.set(myFollowingRef, { followedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                        transaction.set(targetFollowersRef, { followerAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+                        transaction.update(userRef, { followingCount: firebase.firestore.FieldValue.increment(1) });
+                        transaction.update(targetRef, { followersCount: firebase.firestore.FieldValue.increment(1) });
+
+                        // NEW: Create Notification
+                        await createNotification(targetId, 'follow', `${myDoc.data().displayName} started following you.`);
+                    }
+                });
+
+                // Reload profile data to update the button and counts
+                loadProfileData(targetId); 
             } catch (error) {
-                console.error("Error executing follow transaction:", error);
-                alert("Error updating follow status. Check security rules and network connection.");
+                console.error("Error toggling follow status:", error);
+                alert(`Error toggling follow: ${error.message || 'Check console.'}`);
             }
         }
 
+        // --- 7. POSTS & FEED LOGIC ---
 
-        // --- 7. POSTING, LIKES, DELETION, AND SHARING LOGIC ---
-        
         function createPost() {
-            const postText = document.getElementById('post-text').value.trim();
-            if (!postText) {
-                alert("Post content cannot be empty.");
+            if (!auth.currentUser) return;
+            const content = document.getElementById('post-content').value.trim();
+            if (content.length < 5) {
+                alert('Post must be at least 5 characters long.');
                 return;
             }
-            const uid = auth.currentUser.uid;
-            const displayName = auth.currentUser.displayName || 'Anonymous';
 
             db.collection('posts').add({
-                userId: uid,
-                displayName: displayName,
-                content: postText,
+                userId: auth.currentUser.uid,
+                content: content,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                 likesCount: 0,
-                likedBy: [], 
-                commentsCount: 0
+                commentsCount: 0,
+                likedBy: []
             })
             .then(() => {
-                document.getElementById('post-text').value = '';
+                document.getElementById('post-content').value = '';
             })
             .catch(error => {
-                alert("Error creating post: " + error.message);
+                console.error("Error creating post:", error);
             });
         }
+
+        function switchFeed(type) {
+            currentFeedView = type;
+            document.getElementById('following-tab').classList.toggle('active', type === 'following');
+            document.getElementById('explore-tab').classList.toggle('active', type === 'explore');
+            
+            feedContainer.innerHTML = '';
+            feedMessage.textContent = 'Loading posts...';
+            
+            if (type === 'following') {
+                loadFeed();
+            } else {
+                loadExploreFeed();
+            }
+        }
+
+        function refreshActiveFeed() {
+            if (currentFeedView === 'following') {
+                loadFeed();
+            } else {
+                loadExploreFeed();
+            }
+        }
+
+        function loadFeed() {
+            if (unsubscribeFromFeed) {
+                unsubscribeFromFeed();
+            }
+            feedContainer.innerHTML = '';
+            
+            db.collection('users').doc(currentUserId).collection('following').get()
+                .then(followingSnapshot => {
+                    const followingIds = followingSnapshot.docs.map(doc => doc.id);
+                    if (followingIds.length === 0) {
+                        feedMessage.textContent = "You are not following anyone yet. Switch to the 'Explore' tab to find people!";
+                        return;
+                    }
+                    
+                    // Fetch posts from users I follow, sorted by time
+                    const postsRef = db.collection('posts')
+                        .where('userId', 'in', followingIds)
+                        .orderBy('timestamp', 'desc');
+
+                    unsubscribeFromFeed = postsRef.onSnapshot(handleFeedSnapshot, (error) => {
+                        console.error("Following Feed Error:", error);
+                        feedMessage.textContent = "Error loading feed.";
+                    });
+                })
+                .catch(error => {
+                    console.error("Error fetching following list:", error);
+                });
+        }
+
+        function loadExploreFeed() {
+            if (unsubscribeFromFeed) {
+                unsubscribeFromFeed();
+            }
+            
+            const postsRef = db.collection('posts')
+                .orderBy('timestamp', 'desc')
+                .limit(20);
+
+            unsubscribeFromFeed = postsRef.onSnapshot(handleFeedSnapshot, (error) => {
+                console.error("Explore Feed Error:", error);
+                feedMessage.textContent = "Error loading explore feed.";
+            });
+        }
+
+        function handleFeedSnapshot(snapshot) {
+            feedMessage.textContent = ''; // Clear loading message
+
+            snapshot.docChanges().forEach(change => {
+                const postData = change.doc.data();
+                postData.id = change.doc.id;
+
+                if (change.type === "added") {
+                    getUserData(postData.userId).then(user => {
+                        const postElement = renderPost(postData, user);
+                        feedContainer.prepend(postElement); // Prepend for newest first
+                    });
+                } else if (change.type === "modified") {
+                    const existingElement = document.getElementById(`post-${postData.id}`);
+                    if (existingElement) {
+                         getUserData(postData.userId).then(user => {
+                            const updatedElement = renderPost(postData, user);
+                            existingElement.innerHTML = updatedElement.innerHTML;
+                        });
+                    }
+                } else if (change.type === "removed") {
+                    document.getElementById(`post-${postData.id}`)?.remove();
+                }
+            });
+             if (feedContainer.children.length === 0) {
+                 feedMessage.textContent = "No posts found.";
+            }
+        }
         
-        // FUNCTION FOR LIKES 
+        function loadUserPosts(userId) {
+             const container = document.getElementById('profile-posts-container');
+             container.innerHTML = ''; 
+             
+             db.collection('posts')
+                .where('userId', '==', userId)
+                .orderBy('timestamp', 'desc')
+                .limit(10)
+                .get()
+                .then(snapshot => {
+                    if (snapshot.empty) {
+                        container.innerHTML = '<p style="text-align: center; color: var(--color-secondary); padding: 20px;">No posts yet.</p>';
+                        return;
+                    }
+                    getUserData(userId).then(user => {
+                        snapshot.forEach(doc => {
+                            const postData = doc.data();
+                            postData.id = doc.id;
+                            container.appendChild(renderPost(postData, user));
+                        });
+                    });
+                })
+                .catch(error => console.error("Error loading user posts:", error));
+        }
+
+        function renderPost(post, user) {
+            const postElement = document.createElement('div');
+            const uid = auth.currentUser ? auth.currentUser.uid : null;
+            const likedBy = post.likedBy || [];
+            const isLiked = uid && likedBy.includes(uid);
+            const likeIconClass = isLiked ? 'fas fa-heart' : 'far fa-heart';
+            
+            postElement.classList.add('post-card');
+            postElement.setAttribute('id', `post-${post.id}`);
+            
+            const time = post.timestamp ? new Date(post.timestamp.toDate()).toLocaleString() : 'Just now';
+            
+            postElement.innerHTML = `
+                <div class="post-header">
+                    <div class="post-avatar" onclick="navigateAndClose('profile-page-view', '${post.userId}')">${user.displayName.charAt(0).toUpperCase()}</div>
+                    <div>
+                        <div class="post-author" onclick="navigateAndClose('profile-page-view', '${post.userId}')">${user.displayName}</div>
+                        <div style="font-size: 0.8rem; color: var(--color-secondary);">${time}</div>
+                    </div>
+                </div>
+                <div class="post-content">${post.content}</div>
+                <div class="post-actions">
+                    <button class="action-btn" onclick="toggleLike('${post.id}')">
+                        <i id="like-icon-${post.id}" class="${likeIconClass} like-icon ${isLiked ? 'liked' : ''}"></i> 
+                        <span id="likes-count-${post.id}">${post.likesCount || 0}</span>
+                    </button>
+                    <button class="action-btn" onclick="openCommentModal('${post.id}')">
+                        <i class="far fa-comment"></i> ${post.commentsCount || 0}
+                    </button>
+                    <button class="action-btn">
+                        <i class="fas fa-share-alt"></i> Share
+                    </button>
+                </div>
+            `;
+            return postElement;
+        }
+
         async function toggleLike(postId) {
             if (!auth.currentUser) return;
-
             const postRef = db.collection('posts').doc(postId);
             const uid = auth.currentUser.uid;
-
+            
             try {
                 await db.runTransaction(async (transaction) => {
                     const postDoc = await transaction.get(postRef);
 
-                    if (!postDoc.exists) {
-                        throw "Post does not exist!";
-                    }
+                    if (!postDoc.exists) throw "Post does not exist!";
 
                     const likedBy = postDoc.data().likedBy || [];
                     let newLikesCount = postDoc.data().likesCount || 0;
+                    let updatedLikedBy;
+                    let notificationNeeded = false;
+                    
+                    if (likedBy.includes(uid)) {
+                        // UNLIKE
+                        updatedLikedBy = likedBy.filter(id => id !== uid);
+                        newLikesCount--;
+                    } else {
+                        // LIKE
+                        updatedLikedBy = [...likedBy, uid];
+                        newLikesCount++;
+                        notificationNeeded = true;
+                    }
+
+                    transaction.update(postRef, {
+                        likesCount: newLikesCount,
+                        likedBy: updatedLikedBy
+                    });
+                    
+                    // Create notification if liked and not the post owner
+                    if (notificationNeeded && postDoc.data().userId !== uid) {
+                        const myDoc = await transaction.get(db.collection('users').doc(uid));
+                        const senderName = myDoc.data().displayName;
+                        await createNotification(postDoc.data().userId, 'like', `${senderName} liked your post: ${postDoc.data().content.substring(0, 30)}...`);
+                    }
+                });
+            } catch (error) {
+                console.error("Error toggling like:", error);
+                alert("Error toggling like. Check console.");
+            }
+        }
+
+
+        // --- 8. COMMENT MODAL & LOGIC (UPDATED WITH LIKING) ---
+
+        function openCommentModal(postId) {
+            currentCommentPostId = postId;
+            document.getElementById('comment-modal').style.display = 'flex';
+            loadComments(postId);
+        }
+
+        function closeCommentModal() {
+            document.getElementById('comment-modal').style.display = 'none';
+            if (unsubscribeFromComments) {
+                unsubscribeFromComments();
+            }
+            currentCommentPostId = null;
+        }
+
+        async function postComment() {
+            if (!auth.currentUser || !currentCommentPostId) return;
+
+            const content = document.getElementById('comment-text').value.trim();
+            if (content.length === 0) return;
+
+            const postRef = db.collection('posts').doc(currentCommentPostId);
+            const commentRef = postRef.collection('comments').doc();
+
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const postDoc = await transaction.get(postRef);
+                    const userDoc = await transaction.get(db.collection('users').doc(auth.currentUser.uid));
+
+                    if (!postDoc.exists || !userDoc.exists) throw "Post or User not found!";
+
+                    const newCommentsCount = (postDoc.data().commentsCount || 0) + 1;
+
+                    // 1. Write the comment
+                    transaction.set(commentRef, {
+                        postId: currentCommentPostId,
+                        userId: auth.currentUser.uid,
+                        displayName: userDoc.data().displayName,
+                        content: content,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        likesCount: 0,
+                        likedBy: []
+                    });
+
+                    // 2. Increment post's comment count
+                    transaction.update(postRef, {
+                        commentsCount: newCommentsCount
+                    });
+                    
+                    // 3. Create Notification (if not commenting on own post)
+                    if (postDoc.data().userId !== auth.currentUser.uid) {
+                        const senderName = userDoc.data().displayName;
+                        await createNotification(postDoc.data().userId, 'comment', `${senderName} commented on your post: ${content.substring(0, 30)}...`);
+                    }
+                });
+
+                document.getElementById('comment-text').value = '';
+            } catch (error) {
+                console.error("Error posting comment:", error);
+                alert("Error posting comment. Check console.");
+            }
+        }
+        
+        // NEW: Toggle Like on a Comment
+        async function toggleCommentLike(postId, commentId) {
+            if (!auth.currentUser) return;
+
+            const commentRef = db.collection('posts').doc(postId).collection('comments').doc(commentId);
+            const uid = auth.currentUser.uid;
+
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const commentDoc = await transaction.get(commentRef);
+
+                    if (!commentDoc.exists) throw "Comment does not exist!";
+
+                    const likedBy = commentDoc.data().likedBy || [];
+                    let newLikesCount = commentDoc.data().likesCount || 0;
                     let updatedLikedBy;
                     
                     if (likedBy.includes(uid)) {
@@ -852,312 +1261,50 @@
                         // LIKE
                         updatedLikedBy = [...likedBy, uid];
                         newLikesCount++;
+                        // NOTE: Could add comment like notification here if desired
                     }
 
-                    transaction.update(postRef, {
+                    transaction.update(commentRef, {
                         likesCount: newLikesCount,
                         likedBy: updatedLikedBy
                     });
                 });
             } catch (error) {
-                console.error("Error toggling like:", error);
-                alert("Error toggling like. Check security rules."); 
-            }
-        }
-        
-        // FUNCTION FOR DELETING POSTS
-        function deletePost(postId) {
-            if (!confirm("Are you sure you want to delete this post?")) return;
-
-            db.collection('posts').doc(postId).delete().then(() => {
-                console.log(`Post ${postId} deleted.`);
-            }).catch(error => {
-                alert("Error deleting post: You can only delete your own posts.");
-                console.error("Error removing document: ", error);
-            });
-        }
-        
-        // MOCK FUNCTION FOR SHARING
-        function sharePost(postId) {
-            const shareText = `Check out this post on SociaLink (Post ID: ${postId})!`;
-            
-            if (navigator.share) {
-                navigator.share({
-                    title: 'SociaLink Post',
-                    text: shareText,
-                    url: window.location.href 
-                }).catch(error => {
-                    console.error('Error sharing:', error);
-                });
-            } else {
-                navigator.clipboard.writeText(shareText).then(() => {
-                    alert("Share content copied to clipboard!");
-                }).catch(err => {
-                    alert("Could not copy link. Post ID: " + postId);
-                });
+                console.error("Error toggling comment like:", error);
             }
         }
 
-
-        // --- 8. DYNAMIC HOME FEED LOGIC (UPDATED FOR FILTERING AND EXPLORE) ---
-
-        // NEW FUNCTION: Toggles between Following and Explore feeds
-        function switchFeedView(view) {
-            if (currentFeedView === view) return;
-
-            currentFeedView = view;
-            const followingBtn = document.getElementById('feed-btn-following');
-            const exploreBtn = document.getElementById('feed-btn-explore');
-            const feedTitle = document.getElementById('feed-title');
-
-            // Update button styling and title
-            if (view === 'following') {
-                followingBtn.classList.add('btn-primary');
-                followingBtn.classList.remove('btn-secondary');
-                exploreBtn.classList.remove('btn-primary');
-                exploreBtn.classList.add('btn-secondary');
-                feedTitle.innerText = 'Following Feed';
-                loadFeed(); // Load the filtered feed
-            } else {
-                followingBtn.classList.remove('btn-primary');
-                followingBtn.classList.add('btn-secondary');
-                exploreBtn.classList.add('btn-primary');
-                exploreBtn.classList.remove('btn-secondary');
-                feedTitle.innerText = 'Explore Feed';
-                loadExploreFeed(); // Load the general feed
-            }
-        }
-
-
-        // FUNCTION: GET FOLLOWED USERS' UIDs (INCLUDES CURRENT USER)
-        async function getFollowingUids() {
-            if (!auth.currentUser) return [];
-
-            const followingSnapshot = await db.collection('users').doc(auth.currentUser.uid)
-                .collection('following')
-                .get();
-
-            // Map the documents to an array of just the User IDs
-            const followedUids = followingSnapshot.docs.map(doc => doc.id);
-            
-            // CRITICAL LINE: Always include the current user's UID so they see their own posts
-            followedUids.push(auth.currentUser.uid); 
-            
-            // Firestore's 'in' query supports a maximum of 10 IDs. We should limit this.
-            return followedUids.slice(0, 10); 
-        }
-
-        function renderPost(post) {
-            const postId = post.id;
-            const uid = auth.currentUser ? auth.currentUser.uid : null;
-            const likedBy = post.likedBy || [];
-            const isLiked = uid && likedBy.includes(uid);
-            
-            const likeIconClass = isLiked ? 'fas fa-heart' : 'far fa-heart'; 
-            
-            const postElement = document.createElement('div');
-            postElement.classList.add('post-card');
-            postElement.setAttribute('id', `post-${postId}`);
-
-            postElement.innerHTML = `
-                <div class="post-header">
-                    <div style="display: flex; align-items: center; cursor: pointer;" onclick="loadProfileOfPostAuthor('${post.userId}')">
-                        <div class="post-avatar">${post.displayName.charAt(0).toUpperCase()}</div>
-                        <div class="post-info">
-                            <span class="post-username">${post.displayName}</span>
-                            <div style="font-size: 0.8rem; color: #6b7280;">${post.timestamp ? new Date(post.timestamp.toDate()).toLocaleTimeString() : 'Just now'}</div>
-                        </div>
-                    </div>
-                    ${post.userId === uid ? 
-                    `<button class="btn-icon delete-post-btn" onclick="deletePost('${postId}')" title="Delete Post"><i class="fas fa-trash"></i></button>`
-                    : ''}
-                </div>
-                <p>${post.content}</p>
-                <div class="post-actions">
-                    <button onclick="toggleLike('${postId}')" style="color: ${isLiked ? 'var(--color-danger)' : 'var(--color-text)'}">
-                        <i class="${likeIconClass}"></i> Like (${post.likesCount || 0})
-                    </button>
-                    <button onclick="openCommentModal('${postId}', '${post.displayName}')"><i class="far fa-comment"></i> Comment (${post.commentsCount || 0})</button>
-                    <button onclick="sharePost('${postId}')"><i class="fas fa-share"></i> Share</button>
-                </div>
-            `;
-            return postElement;
-        }
-        
-        function loadProfileOfPostAuthor(userId) {
-            if (!auth.currentUser) return;
-            showView('profile-page-view'); 
-            loadProfileData(userId); 
-        }
-
-
-        // FUNCTION: loadFeed() (Filtered - Following)
-        async function loadFeed() {
-            if (unsubscribeFromFeed) {
-                unsubscribeFromFeed();
-            }
-            
-            const feedContainer = document.querySelector('.feed-column');
-            // Remove existing dynamic posts
-            feedContainer.querySelectorAll('.post-card').forEach(card => {
-                if (!card.closest('.card')) { 
-                    card.remove(); 
-                }
-            });
-            
-            // 1. Get the UIDs of the people the current user is following
-            const followedUids = await getFollowingUids();
-            
-            // Check for the 'empty feed' message condition: if the array only contains the current user's UID.
-            const hasFollowing = followedUids.length > 1; 
-
-            // Clear previous empty message, if any
-            const existingMsg = document.getElementById('empty-feed-msg');
-            if (existingMsg) existingMsg.remove();
-            
-            if (!hasFollowing) { 
-                 // If the user isn't following anyone (besides themselves), show a message
-                feedContainer.innerHTML += '<p id="empty-feed-msg" class="card" style="margin-top:20px; text-align:center;">Follow people or switch to the "Explore" tab to see new posts!</p>';
-            }
-
-
-            // 2. Query posts where the 'userId' is IN the list of followedUids
-            const postsRef = db.collection('posts')
-                .where('userId', 'in', followedUids) 
-                .orderBy('timestamp', 'desc')
-                .limit(20);
-            
-            unsubscribeFromFeed = postsRef.onSnapshot(snapshot => {
-                // If there is content, remove the generic empty message
-                const emptyMsg = document.getElementById('empty-feed-msg');
-                if (emptyMsg && snapshot.size > 0) { 
-                     emptyMsg.remove();
-                }
-
-                snapshot.docChanges().forEach(change => {
-                    const postData = change.doc.data();
-                    postData.id = change.doc.id; 
-                    
-                    const existingPostElement = document.getElementById(`post-${postData.id}`);
-                    
-                    if (change.type === "added") {
-                        if (!existingPostElement) {
-                            const newPost = renderPost(postData);
-                            const postCardCreation = document.querySelector('.feed-column > .card');
-                            
-                            // Insert the new post after the creation card and before existing posts
-                            feedContainer.insertBefore(newPost, postCardCreation.nextSibling);
-                        }
-                    } else if (change.type === "modified") {
-                        if (existingPostElement) {
-                            const updatedPost = renderPost(postData);
-                            existingPostElement.innerHTML = updatedPost.innerHTML;
-                        }
-                    } else if (change.type === "removed") {
-                        if (existingPostElement) {
-                            existingPostElement.remove();
-                        }
-                    }
-                });
-            }, error => {
-                console.error("Error loading filtered feed: ", error);
-            });
-        }
-        
-        
-        // NEW FUNCTION: loadExploreFeed() (Unfiltered - All Posts)
-        async function loadExploreFeed() {
-            if (unsubscribeFromFeed) {
-                unsubscribeFromFeed();
-            }
-            
-            const feedContainer = document.querySelector('.feed-column');
-            // Remove existing dynamic posts
-            feedContainer.querySelectorAll('.post-card').forEach(card => {
-                if (!card.closest('.card')) { 
-                    card.remove(); 
-                }
-            });
-            
-            // Clear out the empty feed message if it exists
-            const emptyMsg = document.getElementById('empty-feed-msg');
-            if (emptyMsg) {
-                emptyMsg.remove();
-            }
-
-            // 1. Query all posts (no filtering)
-            const postsRef = db.collection('posts')
-                .orderBy('timestamp', 'desc')
-                .limit(20);
-            
-            // 2. Start the real-time listener (same logic as loadFeed)
-            unsubscribeFromFeed = postsRef.onSnapshot(snapshot => {
-                if (snapshot.empty) {
-                     feedContainer.innerHTML += '<p id="empty-feed-msg" class="card" style="margin-top:20px; text-align:center;">No posts have been created yet. Be the first!</p>';
-                }
-
-                snapshot.docChanges().forEach(change => {
-                    const postData = change.doc.data();
-                    postData.id = change.doc.id; 
-                    
-                    const existingPostElement = document.getElementById(`post-${postData.id}`);
-                    
-                    if (change.type === "added") {
-                        if (!existingPostElement) {
-                            const newPost = renderPost(postData);
-                            const postCardCreation = document.querySelector('.feed-column > .card');
-                            feedContainer.insertBefore(newPost, postCardCreation.nextSibling);
-                        }
-                    } else if (change.type === "modified") {
-                        if (existingPostElement) {
-                            const updatedPost = renderPost(postData);
-                            existingPostElement.innerHTML = updatedPost.innerHTML;
-                        }
-                    } else if (change.type === "removed") {
-                        if (existingPostElement) {
-                            existingPostElement.remove();
-                        }
-                    }
-                });
-            }, error => {
-                console.error("Error loading explore feed: ", error);
-            });
-        }
-
-
-        // --- 9. REAL-TIME COMMENT LOGIC ---
 
         function renderComment(comment) {
             const commentElement = document.createElement('div');
-            commentElement.style.padding = '8px 0';
+            const uid = auth.currentUser ? auth.currentUser.uid : null;
+            const likedBy = comment.likedBy || [];
+            const isLiked = uid && likedBy.includes(uid);
+            const likeIconClass = isLiked ? 'fas fa-heart' : 'far fa-heart';
+            const likesCount = comment.likesCount || 0;
+            
+            commentElement.classList.add('comment-item');
+            commentElement.style.padding = '12px 0';
             commentElement.style.borderBottom = '1px dotted var(--color-border)';
+            commentElement.setAttribute('id', `comment-${comment.id}`); // Important for updates
             
             const time = comment.timestamp ? new Date(comment.timestamp.toDate()).toLocaleString() : 'Just now';
             
             commentElement.innerHTML = `
-                <span style="font-weight: 600;">${comment.displayName}:</span> 
-                <span style="font-size: 0.95rem;">${comment.content}</span>
-                <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">${time}</div>
+                <div class="comment-item-inner">
+                    <div style="flex-grow: 1;">
+                        <span style="font-weight: 600;">${comment.displayName}:</span> 
+                        <span style="font-size: 0.95rem; display: block; margin-top: 5px;">${comment.content}</span>
+                        <div style="font-size: 0.75rem; color: #6b7280; margin-top: 8px; display: flex; align-items: center;">${time}</div>
+                    </div>
+                    <button class="btn-icon" onclick="toggleCommentLike('${comment.postId}', '${comment.id}')" style="color: ${isLiked ? 'var(--color-danger)' : 'var(--color-text)'}; font-size: 0.9rem;">
+                        <i class="${likeIconClass}"></i> ${likesCount}
+                    </button>
+                </div>
             `;
             return commentElement;
         }
 
-        function openCommentModal(postId, displayName) {
-            document.getElementById('active-post-id').value = postId;
-            document.getElementById('comment-modal-title').innerText = `Comments on Post by ${displayName}`;
-            document.getElementById('comment-modal').style.display = 'flex';
-            document.getElementById('comments-list').innerHTML = '<p style="color: #6b7280; text-align: center;">Loading comments...</p>';
-            
-            loadComments(postId);
-        }
-
-        function closeCommentModal() {
-            document.getElementById('comment-modal').style.display = 'none';
-            if (unsubscribeFromComments) {
-                unsubscribeFromComments();
-                unsubscribeFromComments = null;
-            }
-        }
 
         function loadComments(postId) {
             if (unsubscribeFromComments) {
@@ -1171,136 +1318,143 @@
                                     .orderBy('timestamp', 'asc');
                                     
             unsubscribeFromComments = commentsRef.onSnapshot(snapshot => {
-                commentsList.innerHTML = ''; 
-                if (snapshot.empty) {
-                    commentsList.innerHTML = '<p style="color: #6b7280; text-align: center;">Be the first to comment!</p>';
-                }
-                
-                snapshot.docs.forEach(doc => {
-                    commentsList.appendChild(renderComment(doc.data()));
-                });
-                commentsList.scrollTop = commentsList.scrollHeight; 
-            });
-        }
-
-        // FUNCTION FOR SUBMITTING COMMENT
-        async function submitComment() {
-            const postId = document.getElementById('active-post-id').value;
-            const input = document.getElementById('comment-input');
-            const content = input.value.trim();
-
-            if (!content) return;
-            
-            const uid = auth.currentUser.uid;
-            const displayName = auth.currentUser.displayName || 'Anonymous';
-
-            try {
-                // 1. Add comment to the subcollection 
-                await db.collection('posts').doc(postId).collection('comments').add({
-                    userId: uid,
-                    displayName: displayName,
-                    content: content,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-
-                // 2. Atomically update the main post's comment count 
-                const postRef = db.collection('posts').doc(postId);
-                await postRef.update({
-                    commentsCount: firebase.firestore.FieldValue.increment(1)
-                });
-                
-                input.value = '';
-
-            } catch (error) {
-                console.error("Error submitting comment:", error);
-                alert("Error submitting comment.");
-            }
-        }
-
-
-        // --- 10. REAL-TIME CHAT LOGIC ---
-
-        function displayMessage(messageData) {
-            const messagesContainer = document.getElementById('chat-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('message');
-            
-            if (messageData.senderId === auth.currentUser.uid) {
-                messageDiv.classList.add('sent');
-            } else {
-                messageDiv.classList.add('received');
-            }
-            
-            messageDiv.innerText = messageData.content;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight; 
-        }
-
-        async function startChatAndListen(recipientUID) {
-            const currentUID = auth.currentUser.uid;
-            const participants = [currentUID, recipientUID].sort();
-
-            const chatQuery = db.collection('chats').where('participants', '==', participants);
-            const snapshot = await chatQuery.get();
-            let activeChatId = null;
-
-            if (snapshot.empty) {
-                const newChatRef = await db.collection('chats').add({
-                    participants: participants,
-                    lastMessage: "Chat created."
-                });
-                activeChatId = newChatRef.id;
-            } else {
-                activeChatId = snapshot.docs[0].id;
-            }
-            
-            document.getElementById('chat-messages').innerHTML = '';
-            if (unsubscribeFromMessages) {
-                unsubscribeFromMessages();
-            }
-
-            const messagesRef = db.collection('chats').doc(activeChatId).collection('messages')
-                                .orderBy('timestamp', 'asc');
-            
-            unsubscribeFromMessages = messagesRef.onSnapshot(snapshot => {
+                // Use docChanges for real-time updates and preservation
                 snapshot.docChanges().forEach(change => {
+                    const commentData = change.doc.data();
+                    commentData.id = change.doc.id; 
+                    commentData.postId = postId; // Important for the like function
+
+                    const existingCommentElement = document.getElementById(`comment-${commentData.id}`);
+
                     if (change.type === "added") {
-                        displayMessage(change.doc.data());
+                        if (!existingCommentElement) {
+                            commentsList.appendChild(renderComment(commentData));
+                        }
+                    } else if (change.type === "modified") {
+                        if (existingCommentElement) {
+                             // Update existing element to reflect new likes count/status
+                            const updatedComment = renderComment(commentData);
+                            existingCommentElement.innerHTML = updatedComment.innerHTML;
+                        }
+                    } else if (change.type === "removed") {
+                        if (existingCommentElement) {
+                            existingCommentElement.remove();
+                        }
                     }
                 });
+                // Handle the empty state after all changes
+                if (commentsList.children.length === 0) {
+                     commentsList.innerHTML = '<p style="color: var(--color-secondary); text-align: center;">Be the first to comment!</p>';
+                }
+                commentsList.scrollTop = commentsList.scrollHeight; // Scroll to bottom on new comment
+            }, error => {
+                console.error("Error loading comments:", error);
             });
         }
+        
+        // --- 9. NOTIFICATION LOGIC (NEW) ---
 
-        function loadChat(recipientName) {
-            const activeRecipientUID = MOCK_RECIPIENTS[recipientName] || 'DEFAULT_UID'; 
+        async function createNotification(recipientId, type, message) {
+            if (!auth.currentUser || recipientId === auth.currentUser.uid) return;
             
-            document.getElementById('chat-recipient-name').innerText = recipientName;
-            document.getElementById('chat-window-modal').style.display = 'block';
-
-            startChatAndListen(activeRecipientUID);
-        }
-
-        function sendMessage() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            
-            if (!text) {
-                return;
-            }
-            alert("Send functionality is blocked until the activeChatId is correctly stored globally from the startChatAndListen function.");
-            input.value = ''; 
+            await db.collection('notifications').add({
+                recipientId: recipientId,
+                senderId: auth.currentUser.uid,
+                type: type, // 'follow', 'like', 'comment'
+                message: message,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                read: false
+            });
         }
         
-        function closeChat() {
-            document.getElementById('chat-window-modal').style.display = 'none';
-            
-            if (unsubscribeFromMessages) {
-                unsubscribeFromMessages();
-                unsubscribeFromMessages = null;
+        function getNotificationIcon(type) {
+            switch (type) {
+                case 'follow':
+                    return 'fas fa-user-plus';
+                case 'like':
+                    return 'fas fa-heart';
+                case 'comment':
+                    return 'fas fa-comment';
+                default:
+                    return 'fas fa-bell';
             }
-            document.getElementById('chat-messages').innerHTML = ''; 
         }
+
+        function renderNotification(notification) {
+            const time = notification.timestamp ? new Date(notification.timestamp.toDate()).toLocaleString() : 'Just now';
+            const isUnread = !notification.read;
+            const iconClass = getNotificationIcon(notification.type);
+
+            const notifElement = document.createElement('div');
+            notifElement.classList.add('notification-item');
+            if (isUnread) {
+                notifElement.classList.add('unread');
+            }
+
+            notifElement.innerHTML = `
+                <i class="${iconClass} notification-icon"></i>
+                <div class="notification-content">
+                    <p>${notification.message}</p>
+                    <div class="notification-time">${time}</div>
+                </div>
+            `;
+            
+            notifElement.onclick = () => {
+                // 1. Mark as read
+                if (isUnread) {
+                    db.collection('notifications').doc(notification.id).update({ read: true });
+                }
+                
+                // 2. Navigate: Go to profile if it's a follow, otherwise just home
+                if (notification.type === 'follow') {
+                    navigateAndClose('profile-page-view', notification.senderId);
+                } else {
+                    navigateAndClose('home-view');
+                }
+            };
+            return notifElement;
+        }
+
+        function loadNotifications() {
+            if (!auth.currentUser) return;
+            if (unsubscribeFromNotifications) {
+                unsubscribeFromNotifications();
+            }
+
+            const notificationsList = document.getElementById('notifications-list');
+            notificationsList.innerHTML = '';
+            
+            const notificationsRef = db.collection('notifications')
+                                        .where('recipientId', '==', auth.currentUser.uid)
+                                        .orderBy('timestamp', 'desc')
+                                        .limit(50);
+                                        
+            unsubscribeFromNotifications = notificationsRef.onSnapshot(snapshot => {
+                notificationsList.innerHTML = ''; // Clear the list on refresh
+                if (snapshot.empty) {
+                     notificationsList.innerHTML = '<p style="text-align: center; color: var(--color-secondary); padding: 20px;">No notifications yet.</p>';
+                     return;
+                }
+                
+                snapshot.forEach(doc => {
+                    const notif = doc.data();
+                    notif.id = doc.id;
+                    notificationsList.appendChild(renderNotification(notif));
+                });
+
+            }, error => {
+                console.error("Error loading notifications:", error);
+            });
+        }
+        
+        // --- 10. INITIAL LOAD ---
+        // Ensure the initial feed is loaded after auth check
+        if (auth.currentUser) {
+            switchFeed(currentFeedView);
+        }
+
     </script>
+
 </body>
 </html>
 

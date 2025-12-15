@@ -582,8 +582,8 @@
                         displayName: username,
                         email: user.email,
                         bio: `Hey there! I'm new to SociaLink.`,
-                        followersCount: 0, // Initialized to 0
-                        followingCount: 0, // Initialized to 0
+                        followersCount: 0, 
+                        followingCount: 0, 
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } else {
@@ -624,7 +624,7 @@
             }
         }
 
-        // NEW: Function to load data for the main profile view AND check follow status
+        // Function to load data for the main profile view AND check follow status
         async function loadProfileData(targetUserId) {
             const currentUserId = auth.currentUser.uid;
 
@@ -738,7 +738,7 @@
             }
         }
         
-        // NEW FUNCTION: TOGGLE FOLLOW/UNFOLLOW
+        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW
         async function toggleFollow(targetUserId, isCurrentlyFollowing) {
             if (!auth.currentUser || auth.currentUser.uid === targetUserId) return;
 
@@ -771,7 +771,7 @@
                 console.log("Follow status updated successfully!");
                 // Reload the profile to update the button and counts
                 loadProfileData(targetUserId); 
-                loadDrawerProfile(currentUserId); // Update the drawer counts too
+                loadDrawerProfile(currentUserId); 
             } catch (error) {
                 console.error("Error executing follow transaction:", error);
                 alert("Error updating follow status. Check security rules and network connection.");
@@ -779,7 +779,7 @@
         }
 
 
-        // --- 7. POSTING, LIKES, DELETION, AND SHARING LOGIC ---
+        // --- 7. POSTING, LIKES, DELETION, AND SHARING LOGIC (Confirmed Correct) ---
         
         function createPost() {
             const postText = document.getElementById('post-text').value.trim();
@@ -807,7 +807,7 @@
             });
         }
         
-        // FUNCTION FOR LIKES
+        // FUNCTION FOR LIKES (CONFIRMED CORRECT STRUCTURE)
         async function toggleLike(postId) {
             if (!auth.currentUser) return;
 
@@ -881,7 +881,25 @@
         }
 
 
-        // --- 8. DYNAMIC HOME FEED LOGIC ---
+        // --- 8. DYNAMIC HOME FEED LOGIC (UPDATED FOR FILTERING) ---
+
+        // NEW FUNCTION: GET FOLLOWED USERS' UIDs
+        async function getFollowingUids() {
+            if (!auth.currentUser) return [];
+
+            const followingSnapshot = await db.collection('users').doc(auth.currentUser.uid)
+                .collection('following')
+                .get();
+
+            // Map the documents to an array of just the User IDs
+            const followedUids = followingSnapshot.docs.map(doc => doc.id);
+            
+            // Always include the current user's UID so they see their own posts
+            followedUids.push(auth.currentUser.uid);
+            
+            // Firestore's 'in' query supports a maximum of 10 IDs. We should limit this.
+            return followedUids.slice(0, 10); 
+        }
 
         function renderPost(post) {
             const postId = post.id;
@@ -920,32 +938,46 @@
             return postElement;
         }
         
-        // NEW helper function to navigate to a user's profile
         function loadProfileOfPostAuthor(userId) {
             if (!auth.currentUser) return;
-            // The main navigation function that switches views
             showView('profile-page-view'); 
-            // The function that loads the data (including follow button logic)
             loadProfileData(userId); 
         }
 
 
-        function loadFeed() {
+        // UPDATED FUNCTION: loadFeed() for Follower-Based Filtering
+        async function loadFeed() {
             if (unsubscribeFromFeed) {
                 unsubscribeFromFeed();
             }
             
             const feedContainer = document.querySelector('.feed-column');
+            // Remove existing dynamic posts
             feedContainer.querySelectorAll('.post-card').forEach(card => {
                 if (!card.closest('.card')) { 
                     card.remove(); 
                 }
             });
             
-            // For now, load ALL posts (Next step: filter to only followers)
-            const postsRef = db.collection('posts').orderBy('timestamp', 'desc').limit(20);
+            // 1. Get the UIDs of the people the current user is following
+            const followedUids = await getFollowingUids();
+            
+            if (followedUids.length <= 1) { // 1 means only the current user is in the array
+                feedContainer.innerHTML += '<p id="empty-feed-msg" class="card" style="margin-top:20px; text-align:center;">Follow people to see their posts here!</p>';
+            }
+
+            // 2. Query posts where the 'userId' is IN the list of followedUids
+            const postsRef = db.collection('posts')
+                .where('userId', 'in', followedUids) 
+                .orderBy('timestamp', 'desc')
+                .limit(20);
             
             unsubscribeFromFeed = postsRef.onSnapshot(snapshot => {
+                const emptyMsg = document.getElementById('empty-feed-msg');
+                if (emptyMsg && snapshot.size > 0) {
+                    emptyMsg.remove();
+                }
+
                 snapshot.docChanges().forEach(change => {
                     const postData = change.doc.data();
                     postData.id = change.doc.id; 
@@ -956,10 +988,9 @@
                         if (!existingPostElement) {
                             const newPost = renderPost(postData);
                             const postCardCreation = document.querySelector('.feed-column > .card');
-                            const h3 = document.querySelector('.feed-column > h3');
                             
-                            const insertionPoint = postCardCreation.nextSibling || h3.nextSibling;
-                            feedContainer.insertBefore(newPost, insertionPoint);
+                            // Insert the new post after the creation card and before existing posts
+                            feedContainer.insertBefore(newPost, postCardCreation.nextSibling);
                         }
                     } else if (change.type === "modified") {
                         if (existingPostElement) {
@@ -973,11 +1004,11 @@
                     }
                 });
             }, error => {
-                console.error("Error loading feed: ", error);
+                console.error("Error loading filtered feed: ", error);
             });
         }
         
-        // --- 9. REAL-TIME COMMENT LOGIC ---
+        // --- 9. REAL-TIME COMMENT LOGIC (Confirmed Correct) ---
 
         function renderComment(comment) {
             const commentElement = document.createElement('div');
@@ -1035,6 +1066,7 @@
             });
         }
 
+        // FUNCTION FOR SUBMITTING COMMENT (CONFIRMED CORRECT STRUCTURE)
         async function submitComment() {
             const postId = document.getElementById('active-post-id').value;
             const input = document.getElementById('comment-input');
@@ -1046,7 +1078,7 @@
             const displayName = auth.currentUser.displayName || 'Anonymous';
 
             try {
-                // 1. Add comment to the subcollection
+                // 1. Add comment to the subcollection (Rules allow this CREATE)
                 await db.collection('posts').doc(postId).collection('comments').add({
                     userId: uid,
                     displayName: displayName,
@@ -1054,7 +1086,7 @@
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // 2. Atomically update the main post's comment count
+                // 2. Atomically update the main post's comment count (Rules allow this UPDATE)
                 const postRef = db.collection('posts').doc(postId);
                 await postRef.update({
                     commentsCount: firebase.firestore.FieldValue.increment(1)

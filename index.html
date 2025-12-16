@@ -22,6 +22,7 @@
             --color-border: #e5e7eb;
             --color-danger: #ef4444;
             --color-secondary: #6b7280; 
+            --color-admin-accent: #10b981; /* New Admin Green */
             --font-stack: 'Inter', sans-serif;
         }
 
@@ -36,6 +37,23 @@
         }
         body.dark-mode .message-bubble.other {
             background-color: #374151; /* Darker grey for distinction */
+        }
+        
+        /* --- ADMIN STYLES --- */
+        .admin-report-item {
+            padding: 15px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .admin-report-item h4 {
+            color: var(--color-danger);
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        .admin-report-item p {
+            font-size: 0.9em;
+            color: var(--color-secondary);
         }
 
 
@@ -138,6 +156,10 @@
             background-color: var(--color-danger);
             color: white;
             border: none;
+        }
+        .btn-admin {
+            background-color: var(--color-admin-accent);
+            color: white;
         }
 
         /* --- SIDE DRAWER STYLES --- */
@@ -463,6 +485,11 @@
             </a>
             
             <a href="#" onclick="alert('Bookmarks feature coming soon!')"><i class="fas fa-bookmark"></i> Bookmarks</a>
+            
+            <a id="drawer-admin-link" href="#" onclick="navigateAndClose('admin-view')" style="display: none; color: var(--color-admin-accent);">
+                <i class="fas fa-shield-alt"></i> Admin Dashboard
+            </a>
+            
         </div>
 
         <hr style="border-color: var(--color-border);">
@@ -633,7 +660,34 @@
                 <button class="btn-secondary" onclick="markAllNotificationsAsRead()" style="margin-top: 15px; width: 100%;">Mark All As Read</button>
             </div>
         </div>
+        
+        <div id="admin-view" class="view page-content" style="display: none;">
+            <div class="card" style="max-width: 800px; margin: 20px auto; padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-admin-accent); padding-bottom: 10px; margin-bottom: 20px;">
+                    <button class="back-button" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+                    <h3 style="color: var(--color-admin-accent);">Admin Dashboard <i class="fas fa-shield-alt"></i></h3>
+                    <button class="btn-admin" onclick="loadAdminReports()">Refresh Reports</button>
+                </div>
 
+                <h4>Content Reports Queue</h4>
+                <p style="color: var(--color-danger);">
+                    **WARNING:** This view bypasses normal user security. Actions taken here are permanent.
+                </p>
+                
+                <div id="admin-reports-list">
+                    <p style="text-align: center; color: var(--color-secondary);">Fetching reports...</p>
+                </div>
+
+                <h4 style="margin-top: 30px;">User Management</h4>
+                <div style="display: flex; margin-bottom: 15px;">
+                    <input type="text" id="admin-user-search-input" placeholder="Search User by UID or Name" style="margin-bottom: 0; flex-grow: 1; margin-right: 10px;">
+                    <button class="btn-primary" onclick="searchAdminUser()">Search</button>
+                </div>
+                <div id="admin-user-management-area" class="card" style="padding: 15px; margin: 0; max-width: 100%;">
+                    <p id="admin-user-search-result" style="text-align: center; color: var(--color-secondary);">Search result will appear here.</p>
+                </div>
+            </div>
+        </div>
         <div id="chat-window-modal" style="display: none;">
             <div class="chat-window-card">
                 <div class="chat-header-bar">
@@ -697,6 +751,10 @@
         let isSigningUp = true; 
         let currentProfileTargetId = null; 
         
+        // NEW ADMIN VAR: Your hardcoded UID (FyaLCr7lSbR21pDuSTmCacVwiCC3)
+        const ADMIN_UID = 'FyaLCr7lSbR21pDuSTmCacVwiCC3'; 
+        let currentAdminUser = { isAdmin: false }; // Global state for admin status
+
         // CHAT STATE
         let activeChatId = null; 
         let activeRecipientUID = null;
@@ -716,9 +774,11 @@
         const profilePageView = document.getElementById('profile-page-view');
         const chatPageView = document.getElementById('chat-page-view');
         const notificationsView = document.getElementById('notifications-view'); 
+        const adminView = document.getElementById('admin-view'); // NEW ADMIN VIEW REF
         const sideDrawer = document.getElementById('side-drawer');
         const drawerToggleArea = document.getElementById('drawer-toggle-area');
         const drawerOverlay = document.getElementById('drawer-overlay');
+        const drawerAdminLink = document.getElementById('drawer-admin-link'); // NEW ADMIN LINK REF
         const settingsToggle = document.querySelector('.settings-toggle');
         const settingsMenu = document.querySelector('.settings-menu');
         const notificationCountBadge = document.getElementById('notification-count');
@@ -786,6 +846,7 @@
             profilePageView.style.display = 'none';
             chatPageView.style.display = 'none';
             notificationsView.style.display = 'none'; 
+            adminView.style.display = 'none'; // NEW ADMIN VIEW HIDE
             chatWindowModal.style.display = 'none'; 
 
             // Show the requested view
@@ -813,6 +874,15 @@
                 loadNotifications();
             } else if (viewId === 'home-view' && auth.currentUser) {
                 switchFeedView(currentFeedView, true); // Force a check/load
+            } else if (viewId === 'admin-view' && auth.currentUser) { // NEW ADMIN VIEW LOGIC
+                 if (currentAdminUser.isAdmin) {
+                    loadAdminReports();
+                 } else {
+                    // Critical Redirection if a non-admin manually types the URL
+                    alert("Authorization Required: Access Denied.");
+                    window.history.replaceState({ view: 'home-view' }, 'Home', '#home-view');
+                    showView('home-view', null, true); 
+                 }
             }
         }
 
@@ -892,6 +962,7 @@
                         followersCount: 0, 
                         followingCount: 0, 
                         emailVisibility: 'private', 
+                        // The isAdmin flag will be 'undefined' or 'false' by default
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } else {
@@ -916,6 +987,7 @@
                     unsubscribeFromNotifications = null;
                 }
                 userCache = {}; 
+                currentAdminUser.isAdmin = false; // Reset admin status on logout
             }).catch(error => {
                 alert("Logout Error: " + error.message);
             });
@@ -930,13 +1002,45 @@
                 const doc = await db.collection('users').doc(uid).get();
                 if (doc.exists) {
                     userCache[uid] = doc.data();
+                    // NEW: Ensure isAdmin is captured and cached
+                    if (uid === ADMIN_UID) {
+                        userCache[uid].isAdmin = userCache[uid].isAdmin || false; 
+                    }
                     return userCache[uid];
                 }
             } catch (error) {
                 console.error("Error fetching user data:", error);
             }
             // Return safe defaults if fetch fails
-            return { displayName: 'User Not Found', email: 'N/A', bio: 'Error fetching profile.', followersCount: 0, followingCount: 0, emailVisibility: 'private' };
+            return { displayName: 'User Not Found', email: 'N/A', bio: 'Error fetching profile.', followersCount: 0, followingCount: 0, emailVisibility: 'private', isAdmin: false };
+        }
+
+        // NEW ADMIN FUNCTION: Starts listener to check and update admin status
+        function startAdminListener(uid) {
+             const userRef = db.collection('users').doc(uid);
+             
+             // This listener only runs for the logged-in user to check their admin status
+             userRef.onSnapshot(doc => {
+                 if (doc.exists) {
+                     currentAdminUser.isAdmin = doc.data().isAdmin === true;
+                     // Conditionally show/hide the drawer link based on the snapshot
+                     if (currentAdminUser.isAdmin) {
+                         drawerAdminLink.style.display = 'flex';
+                     } else {
+                         drawerAdminLink.style.display = 'none';
+                         // If we are currently on the admin-view, redirect them home
+                         if (window.location.hash.includes('#admin-view')) {
+                            showView('home-view', null, false);
+                         }
+                     }
+                 } else {
+                     currentAdminUser.isAdmin = false;
+                     drawerAdminLink.style.display = 'none';
+                 }
+                 console.log(`Admin status updated: ${currentAdminUser.isAdmin}`);
+             }, error => {
+                 console.error("Error checking admin status:", error);
+             });
         }
 
         // Function to load data specifically for the side drawer
@@ -1096,6 +1200,9 @@
             if (user) {
                 drawerToggleArea.style.display = 'block';
                 
+                // NEW ADMIN CHECK: Start listening to the user's admin flag
+                startAdminListener(user.uid); 
+
                 // Get display name for the post card title
                 db.collection('users').doc(user.uid).get().then(doc => {
                     const data = doc.data();
@@ -1342,7 +1449,7 @@
             }
         }
         
-        // FUNCTION FOR DELETING POSTS
+        // FUNCTION FOR DELETING POSTS (USER ONLY)
         function deletePost(postId) {
             if (!confirm("Are you sure you want to delete this post?")) return;
             const uid = auth.currentUser.uid;
@@ -2117,6 +2224,206 @@
                 console.error("Error marking all as read:", error);
             }
         }
+        
+        // ==========================================================
+        //  12. ADMIN DASHBOARD LOGIC (NEW SECTION)
+        // ==========================================================
+        
+        // Renders a single report item for the admin queue
+        function renderAdminReport(report) {
+            const reportElement = document.createElement('div');
+            reportElement.classList.add('admin-report-item');
+            reportElement.setAttribute('data-report-id', report.id);
+
+            const time = report.timestamp ? new Date(report.timestamp.toDate()).toLocaleString() : 'Unknown';
+
+            reportElement.innerHTML = `
+                <h4>Report ID: ${report.id} (Status: ${report.status})</h4>
+                <p><strong>Reason:</strong> ${report.reason}</p>
+                <p><strong>Content ID:</strong> <span style="font-family: monospace;">${report.contentId}</span> (Type: ${report.contentType})</p>
+                <p><strong>Reported By:</strong> ${report.reporterId} at ${time}</p>
+                
+                <div style="margin-top: 10px;">
+                    <button class="btn-danger" style="margin-right: 10px;" onclick="adminDeleteContent('${report.contentType}', '${report.contentId}', '${report.id}')">
+                        <i class="fas fa-trash-alt"></i> Delete Content
+                    </button>
+                    <button class="btn-secondary" onclick="adminDismissReport('${report.id}')">
+                        <i class="fas fa-check"></i> Dismiss Report
+                    </button>
+                    <button class="btn-primary" style="margin-left: 10px;" onclick="navigateAndClose('profile-page-view', '${report.reportedUserId}')">
+                        <i class="fas fa-user-circle"></i> View Reported User
+                    </button>
+                </div>
+            `;
+            return reportElement;
+        }
+
+        // FUNCTION: Load reports for the Admin view (MOCK/SIMULATED DATA ACCESS)
+        async function loadAdminReports() {
+            if (!currentAdminUser.isAdmin) return;
+            
+            const reportsList = document.getElementById('admin-reports-list');
+            reportsList.innerHTML = '<p style="text-align: center; color: var(--color-secondary);">Fetching data from the /reports collection...</p>';
+            
+            try {
+                // NOTE: Replace '/reports' with your actual collection path if different
+                // Security is enforced by Firebase Rules, but we rely on the client-side check here too
+                const snapshot = await db.collection('reports')
+                    .where('status', '==', 'open')
+                    .orderBy('timestamp', 'asc')
+                    .get();
+
+                reportsList.innerHTML = '';
+
+                if (snapshot.empty) {
+                    reportsList.innerHTML = '<p style="text-align: center; color: var(--color-admin-accent); font-weight: 600;">No open reports. All clear!</p>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const reportData = doc.data();
+                    reportData.id = doc.id;
+                    reportsList.appendChild(renderAdminReport(reportData));
+                });
+
+            } catch (error) {
+                // This is the critical block that catches Permission Denied errors
+                console.error("ADMIN ACCESS ERROR:", error);
+                reportsList.innerHTML = `<p style="text-align: center; color: var(--color-danger); font-weight: 700;">
+                    ERROR: Could not fetch reports. Ensure your Firebase Security Rules grant read access to admins!
+                </p>`;
+                alert("Report access failed. Check console for Firebase security rule error.");
+            }
+        }
+        
+        // FUNCTION: ADMIN ACTION - Delete content (Post/Comment/User)
+        async function adminDeleteContent(contentType, contentId, reportId) {
+             if (!currentAdminUser.isAdmin) return;
+             if (!confirm(`ADMIN: Are you sure you want to PERMANENTLY DELETE the ${contentType} with ID ${contentId}?`)) return;
+
+             try {
+                 // In a real app, this would be a complex batch write covering all subcollections (comments, likes, etc.)
+                 let contentRef;
+                 if (contentType === 'post') {
+                     contentRef = db.collection('posts').doc(contentId);
+                 } else if (contentType === 'user') {
+                      contentRef = db.collection('users').doc(contentId);
+                      // NOTE: Deleting a user requires Firebase Admin SDK on a backend function!
+                      alert("Admin: User deletion requires a secure Cloud Function. Simulating deletion...");
+                      // For front-end demo, we'll just delete the report:
+                      await adminDismissReport(reportId, true);
+                      return; 
+                 }
+                 
+                 // 1. Delete the content
+                 await contentRef.delete();
+                 
+                 // 2. Dismiss the report
+                 await adminDismissReport(reportId, true);
+
+                 alert(`${contentType} successfully deleted and report dismissed!`);
+                 loadAdminReports(); // Refresh the queue
+
+             } catch (error) {
+                 console.error("ADMIN DELETE ERROR:", error);
+                 alert("Error during deletion. Check console for security/path details.");
+             }
+        }
+
+        // FUNCTION: ADMIN ACTION - Dismiss report (Keeps content)
+        async function adminDismissReport(reportId, silent = false) {
+             if (!currentAdminUser.isAdmin) return;
+             if (!silent && !confirm(`ADMIN: Are you sure you want to dismiss report ${reportId} (content will remain)?`)) return;
+
+             try {
+                 await db.collection('reports').doc(reportId).update({
+                     status: 'dismissed',
+                     dismissedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                     dismissedBy: auth.currentUser.uid
+                 });
+                 
+                 if (!silent) {
+                    alert("Report successfully dismissed!");
+                 }
+                 loadAdminReports();
+
+             } catch (error) {
+                 console.error("ADMIN DISMISS ERROR:", error);
+                 alert("Error dismissing report. Check console.");
+             }
+        }
+
+        // FUNCTION: ADMIN ACTION - Search User (MOCK)
+        async function searchAdminUser() {
+             const input = document.getElementById('admin-user-search-input').value.trim();
+             const resultArea = document.getElementById('admin-user-search-result');
+             if (!input) {
+                 resultArea.innerHTML = "Please enter a UID or Display Name.";
+                 return;
+             }
+             
+             resultArea.innerHTML = "Searching...";
+
+             try {
+                 let userData = null;
+
+                 // 1. Try search by UID first
+                 const uidRegex = /^[a-zA-Z0-9]{28}$/; // Typical Firebase UID length/chars
+                 if (uidRegex.test(input)) {
+                     userData = await getUserData(input);
+                 } 
+                 
+                 // 2. If not found by UID (or if name was entered), search by display name
+                 if (!userData || userData.displayName === 'User Not Found') {
+                     const snapshot = await db.collection('users').where('displayName', '==', input).limit(1).get();
+                     if (!snapshot.empty) {
+                          const doc = snapshot.docs[0];
+                          userData = { id: doc.id, ...doc.data() };
+                     }
+                 }
+
+                 if (userData && userData.displayName !== 'User Not Found') {
+                    // Result found!
+                    resultArea.innerHTML = `
+                        <p style="margin-bottom: 5px;"><strong>Found User:</strong> ${userData.displayName} (${userData.email})</p>
+                        <p style="margin-bottom: 10px;"><strong>UID:</strong> <span style="font-family: monospace;">${userData.id || input}</span></p>
+                        <button class="btn-danger" style="margin-right: 10px;" onclick="adminBanUser('${userData.id || input}')">
+                            <i class="fas fa-ban"></i> Ban User
+                        </button>
+                        <button class="btn-primary" onclick="navigateAndClose('profile-page-view', '${userData.id || input}')">
+                            <i class="fas fa-eye"></i> View Profile
+                        </button>
+                    `;
+                 } else {
+                     resultArea.innerHTML = `<p style="color: var(--color-danger);">No user found matching "${input}".</p>`;
+                 }
+
+             } catch (error) {
+                 console.error("ADMIN USER SEARCH ERROR:", error);
+                 resultArea.innerHTML = `<p style="color: var(--color-danger);">Error during user search.</p>`;
+             }
+        }
+        
+        // FUNCTION: ADMIN ACTION - Ban User (MOCK/SIMULATED)
+        function adminBanUser(userId) {
+             if (!currentAdminUser.isAdmin) return;
+             if (!confirm(`ADMIN: Are you sure you want to PERMANENTLY BAN the user with UID ${userId}? This requires a backend function!`)) return;
+
+             // NOTE: Banning a user requires a Cloud Function to disable the Firebase Auth account!
+             // On the client-side, we can only update the Firestore profile:
+             db.collection('users').doc(userId).update({
+                 isBanned: true,
+                 bannedBy: auth.currentUser.uid,
+                 bannedAt: firebase.firestore.FieldValue.serverTimestamp()
+             }).then(() => {
+                 alert(`User ${userId} marked as BANNED in Firestore! (Requires Auth function for full ban)`);
+                 document.getElementById('admin-user-search-result').innerHTML = `<p style="color: var(--color-danger); font-weight: 700;">User ${userId} is BANNED in Firestore. Ban action recorded.</p>`;
+             }).catch(error => {
+                  console.error("BAN ERROR:", error);
+                  alert("Error marking user as banned. Check console.");
+             });
+        }
+        
     </script>
 </body>
 </html>

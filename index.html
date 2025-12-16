@@ -7,9 +7,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
     <style>
         /* --- CSS VARIABLES FOR THEMEING --- */
@@ -1171,36 +1171,59 @@
             }
         }
         
-        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW (REVISED CLIENT-SIDE FIX - USING BATCH)
+        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW (ULTRA-DEFENSIVE VERSION)
         async function toggleFollow(targetUserId, isCurrentlyFollowing) {
             if (!auth.currentUser || auth.currentUser.uid === targetUserId) return;
 
             const currentUserId = auth.currentUser.uid;
-            const currentUserRef = db.collection('users').doc(currentUserId);
-            const targetUserRef = db.collection('users').doc(targetUserId);
             const followingRef = db.collection('users').doc(currentUserId).collection('following').doc(targetUserId);
             const followersRef = db.collection('users').doc(targetUserId).collection('followers').doc(currentUserId);
+            
+            // Get the documents defensively to ensure fields exist or are initialized
+            const currentUserDoc = await db.collection('users').doc(currentUserId).get();
+            const targetUserDoc = await db.collection('users').doc(targetUserId).get();
+
+            if (!currentUserDoc.exists || !targetUserDoc.exists) {
+                alert("Error: One or both user profiles are missing from the database.");
+                return;
+            }
+            
+            // Initialize counts if they are missing (prevents increment failure)
+            const currentUserUpdate = {};
+            if (currentUserDoc.data().followingCount === undefined) currentUserUpdate.followingCount = 0;
+            
+            const targetUserUpdate = {};
+            if (targetUserDoc.data().followersCount === undefined) targetUserUpdate.followersCount = 0;
 
             try {
-                // Use a Firestore Batch for multiple guaranteed writes instead of a Transaction, 
-                // as transactions are more strict and usually fail when documents are read before writing.
                 const batch = db.batch(); 
+                const incrementValue = isCurrentlyFollowing ? -1 : 1;
                     
+                // 1. Initialize missing fields if necessary
+                if (Object.keys(currentUserUpdate).length > 0) {
+                    batch.set(currentUserDoc.ref, currentUserUpdate, { merge: true });
+                }
+                if (Object.keys(targetUserUpdate).length > 0) {
+                    batch.set(targetUserDoc.ref, targetUserUpdate, { merge: true });
+                }
+                
+                // 2. Perform the main follow/unfollow write
                 if (isCurrentlyFollowing) {
-                    // --- UNFOLLOW OPERATION ---
+                    // UNFOLLOW OPERATION
                     batch.delete(followingRef);
                     batch.delete(followersRef);
-                    batch.update(currentUserRef, { followingCount: firebase.firestore.FieldValue.increment(-1) });
-                    batch.update(targetUserRef, { followersCount: firebase.firestore.FieldValue.increment(-1) });
-                    
                 } else {
-                    // --- FOLLOW / FOLLOW BACK OPERATION ---
+                    // FOLLOW / FOLLOW BACK OPERATION
                     batch.set(followingRef, { followedAt: firebase.firestore.FieldValue.serverTimestamp() });
                     batch.set(followersRef, { followedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                    batch.update(currentUserRef, { followingCount: firebase.firestore.FieldValue.increment(1) });
-                    batch.update(targetUserRef, { followersCount: firebase.firestore.FieldValue.increment(1) });
+                }
+                
+                // 3. Update Counts
+                batch.update(currentUserDoc.ref, { followingCount: firebase.firestore.FieldValue.increment(incrementValue) });
+                batch.update(targetUserDoc.ref, { followersCount: firebase.firestore.FieldValue.increment(incrementValue) });
 
-                    // Create Notification 
+                // 4. Create Notification 
+                if (!isCurrentlyFollowing) {
                     const sourceUserName = auth.currentUser.displayName;
                     // Removed await inside the transaction/batch structure for better performance/reliability
                     createNotification(
@@ -1216,7 +1239,6 @@
                 userCache[currentUserId] = null; 
                 userCache[targetUserId] = null; 
                 
-                // Re-run the profile load to update the button and counts
                 loadProfileData(targetUserId); 
                 loadDrawerProfile(currentUserId); 
                 if(currentFeedView === 'following') {

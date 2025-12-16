@@ -31,6 +31,7 @@
             --color-text: #f9fafb;
             --color-card-bg: #1f2937;
             --color-border: #374151;
+            --color-danger: #f87171; 
             --color-secondary: #9ca3af; 
         }
         body.dark-mode .message-bubble.other {
@@ -692,11 +693,11 @@
         const auth = app.auth();
         const db = app.firestore();
         
-        // --- 2. GLOBAL STATE & UI REFERENCES (UPDATED) ---
+        // --- 2. GLOBAL STATE & UI REFERENCES ---
         let isSigningUp = true; 
         let currentProfileTargetId = null; 
         
-        // CHAT STATE (NEW)
+        // CHAT STATE
         let activeChatId = null; 
         let activeRecipientUID = null;
         let unsubscribeFromMessages = null; 
@@ -722,7 +723,7 @@
         const settingsMenu = document.querySelector('.settings-menu');
         const notificationCountBadge = document.getElementById('notification-count');
         
-        // CHAT UI REFERENCES (NEW)
+        // CHAT UI REFERENCES
         const chatWindowModal = document.getElementById('chat-window-modal');
         const chatMessagesContainer = document.getElementById('chat-messages');
         const chatInput = document.getElementById('chat-input');
@@ -776,7 +777,7 @@
         }
 
 
-        // --- 4. SPA NAVIGATION & DRAWER CONTROL (UPDATED FOR CHAT FIX) ---
+        // --- 4. SPA NAVIGATION & DRAWER CONTROL ---
         
         function showView(viewId, targetUserId = null, isBackNavigation = false) {
             // Hide all views
@@ -785,7 +786,7 @@
             profilePageView.style.display = 'none';
             chatPageView.style.display = 'none';
             notificationsView.style.display = 'none'; 
-            chatWindowModal.style.display = 'none'; // Ensure chat modal is hidden
+            chatWindowModal.style.display = 'none'; 
 
             // Show the requested view
             const targetView = document.getElementById(viewId);
@@ -815,21 +816,20 @@
             }
         }
 
-        // Handle navigation from buttons/links (FIX: Added event to prevent default link behavior)
+        // Handle navigation from buttons/links
         function navigateAndClose(viewId, targetUserId = null, event = null) {
             if (event) {
-                event.preventDefault(); // Prevents the <a> tag's default action (page reload/hash jump)
+                event.preventDefault(); // Prevents the <a> tag's default action
             }
-            showView(viewId, targetUserId, false); // Not a back navigation
+            showView(viewId, targetUserId, false); 
             toggleSideDrawer(false);
         }
         
         // Listen for browser's back button
         window.onpopstate = function(event) {
             if (event.state && event.state.view) {
-                showView(event.state.view, event.state.userId, true); // It's a back navigation
+                showView(event.state.view, event.state.userId, true); 
             } else if (auth.currentUser) {
-                // Default back state (e.g., initial load)
                 showView('home-view', null, true);
             } else {
                 showView('auth-view', null, true);
@@ -904,7 +904,6 @@
 
         function logout() {
             auth.signOut().then(() => {
-                // Clear history and hash to prevent back button issues after logout
                 window.history.replaceState({ view: 'auth-view' }, 'Auth', '#auth-view');
                 showView('auth-view', null, true); 
                 drawerToggleArea.style.display = 'none'; 
@@ -916,12 +915,13 @@
                     unsubscribeFromNotifications();
                     unsubscribeFromNotifications = null;
                 }
-                userCache = {}; // Clear cache
+                userCache = {}; 
             }).catch(error => {
                 alert("Logout Error: " + error.message);
             });
         }
         
+        // FUNCTION: Robust User Data Fetch
         async function getUserData(uid) {
             if (userCache[uid]) {
                 return userCache[uid];
@@ -935,7 +935,8 @@
             } catch (error) {
                 console.error("Error fetching user data:", error);
             }
-            return { displayName: 'User Not Found', email: 'N/A', bio: '', followersCount: 0, followingCount: 0, emailVisibility: 'private' };
+            // Return safe defaults if fetch fails
+            return { displayName: 'User Not Found', email: 'N/A', bio: 'Error fetching profile.', followersCount: 0, followingCount: 0, emailVisibility: 'private' };
         }
 
         // Function to load data specifically for the side drawer
@@ -957,9 +958,14 @@
             if (!auth.currentUser) return false;
             const currentUserId = auth.currentUser.uid;
             
-            const doc = await db.collection('users').doc(currentUserId)
-                .collection('following').doc(targetUserId).get();
-            return doc.exists;
+            try {
+                 const doc = await db.collection('users').doc(currentUserId)
+                    .collection('following').doc(targetUserId).get();
+                return doc.exists;
+            } catch (error) {
+                 console.error("Error checking follow status:", error);
+                 return false; // Assume not following on error
+            }
         }
 
         // Check if the target user is following the current user (Follow Back Logic)
@@ -967,88 +973,99 @@
             if (!auth.currentUser) return false;
             const currentUserId = auth.currentUser.uid;
             
-            const docRef = db.collection('users').doc(targetUserId).collection('following').doc(currentUserId);
-            const doc = await docRef.get();
-            return doc.exists;
+            try {
+                const docRef = db.collection('users').doc(targetUserId).collection('following').doc(currentUserId);
+                const doc = await docRef.get();
+                return doc.exists;
+            } catch (error) {
+                 console.error("Error checking follow back status:", error);
+                 return false; // Assume not following on error
+            }
         }
 
 
-        // Function to load data for the main profile view
+        // Function to load data for the main profile view (Robust Version)
         async function loadProfileData(targetUserId) {
-            if (!auth.currentUser) return;
+            if (!auth.currentUser || !targetUserId) return;
 
             const currentUserId = auth.currentUser.uid;
             const isOwner = currentUserId === targetUserId;
             
-            const data = await getUserData(targetUserId);
+            const profileButtonArea = document.getElementById('profile-button-area');
+            profileButtonArea.innerHTML = 'Loading profile details...';
+            document.getElementById('profile-edit-form').style.display = 'none'; 
 
-            // 1. Update the UI basics
-            const displayName = data.displayName || 'User';
-            const initial = displayName.charAt(0).toUpperCase();
-            document.getElementById('profile-display-name').innerText = displayName;
-            document.getElementById('profile-bio').innerText = `Bio: ${data.bio || 'Tell us about yourself!'}`;
-            document.getElementById('profile-initials').innerText = initial;
-            document.getElementById('profile-following-count').innerText = `${data.followingCount || 0} Following`;
-            document.getElementById('profile-followers-count').innerText = `${data.followersCount || 0} Followers`;
 
-            // 2. Handle Email Visibility Logic
-            let displayEmail = '';
-            const emailVisibility = data.emailVisibility || 'private';
+            try {
+                const data = await getUserData(targetUserId);
 
-            if (emailVisibility === 'public') {
-                displayEmail = data.email;
-            } else if (emailVisibility === 'followers') {
-                const isFollowingTarget = await checkFollowStatus(targetUserId);
-                if (isFollowingTarget || isOwner) {
+                // 1. Update the UI basics
+                const displayName = data.displayName || 'User';
+                const initial = displayName.charAt(0).toUpperCase();
+                document.getElementById('profile-display-name').innerText = displayName;
+                document.getElementById('profile-bio').innerText = `Bio: ${data.bio || 'Tell us about yourself!'}`;
+                document.getElementById('profile-initials').innerText = initial;
+                document.getElementById('profile-following-count').innerText = `${data.followingCount || 0} Following`;
+                document.getElementById('profile-followers-count').innerText = `${data.followersCount || 0} Followers`;
+
+                // 2. Handle Email Visibility Logic
+                let displayEmail = '';
+                const emailVisibility = data.emailVisibility || 'private';
+
+                if (emailVisibility === 'public' || isOwner) {
                     displayEmail = data.email;
-                } else {
-                    displayEmail = 'Email visible to followers';
-                }
-            } else { // private
-                if (isOwner) {
-                    displayEmail = data.email; 
-                } else {
+                } else if (emailVisibility === 'followers') {
+                    const isFollowingTarget = await checkFollowStatus(targetUserId);
+                    if (isFollowingTarget) {
+                        displayEmail = data.email;
+                    } else {
+                        displayEmail = 'Email visible to followers';
+                    }
+                } else { 
                     displayEmail = 'Email is private';
                 }
-            }
-            document.getElementById('profile-email').innerText = displayEmail;
+                document.getElementById('profile-email').innerText = displayEmail;
 
-            // 3. Update the Edit/Follow Button Area
-            const profileButtonArea = document.getElementById('profile-button-area');
-            document.getElementById('profile-edit-form').style.display = 'none'; 
-            
-            if (isOwner) {
-                profileButtonArea.innerHTML = `<button class="btn-primary" onclick="toggleEditProfile(true)">Edit Profile</button>`;
-                // Pre-fill edit form
-                document.getElementById('edit-name').value = displayName;
-                document.getElementById('edit-bio').value = data.bio || '';
-                document.getElementById('edit-email-visibility').value = emailVisibility; 
-            } else {
-                // Viewer is NOT the owner
-                const isFollowing = await checkFollowStatus(targetUserId);
-                const targetFollowsMe = await checkIfTargetFollowsMe(targetUserId);
-                
-                let buttonText = 'Follow';
-                let buttonClass = 'btn-primary';
+                // 3. Update the Edit/Follow Button Area
+                if (isOwner) {
+                    profileButtonArea.innerHTML = `<button class="btn-primary" onclick="toggleEditProfile(true)">Edit Profile</button>`;
+                    // Pre-fill edit form
+                    document.getElementById('edit-name').value = displayName;
+                    document.getElementById('edit-bio').value = data.bio || '';
+                    document.getElementById('edit-email-visibility').value = emailVisibility; 
+                } else {
+                    // Viewer is NOT the owner - Show Follow/Unfollow
+                    const isFollowing = await checkFollowStatus(targetUserId);
+                    const targetFollowsMe = await checkIfTargetFollowsMe(targetUserId);
+                    
+                    let buttonText = 'Follow';
+                    let buttonClass = 'btn-primary';
 
-                if (isFollowing) {
-                    buttonText = 'Unfollow';
-                    buttonClass = 'btn-danger';
-                } else if (targetFollowsMe) {
-                    buttonText = 'Follow Back'; 
-                    buttonClass = 'btn-primary';
+                    if (isFollowing) {
+                        buttonText = 'Unfollow';
+                        buttonClass = 'btn-danger';
+                    } else if (targetFollowsMe) {
+                        buttonText = 'Follow Back'; 
+                        buttonClass = 'btn-primary';
+                    }
+                    
+                    profileButtonArea.innerHTML = `
+                        <button class="${buttonClass}" onclick="toggleFollow('${targetUserId}', ${isFollowing})">
+                            <i class="fas fa-user-${isFollowing ? 'minus' : 'plus'}"></i> ${buttonText}
+                        </button>
+                    `;
                 }
-                
-                profileButtonArea.innerHTML = `
-                    <button class="${buttonClass}" onclick="toggleFollow('${targetUserId}', ${isFollowing})">
-                        <i class="fas fa-user-${isFollowing ? 'minus' : 'plus'}"></i> ${buttonText}
-                    </button>
-                `;
-            }
 
-            // Load user's posts
-            loadUserPosts(targetUserId);
+                // Load user's posts
+                loadUserPosts(targetUserId);
+
+            } catch (error) {
+                console.error("CRITICAL: Failed to load profile or follow status check:", error);
+                profileButtonArea.innerHTML = `<p style="color: var(--color-danger);">Failed to load profile data.</p>`;
+                document.getElementById('profile-posts-container').innerHTML = '';
+            }
         }
+
 
         // Start real-time listener for notifications when user logs in
         function startNotificationListener(uid) {
@@ -1078,11 +1095,17 @@
         auth.onAuthStateChanged(user => {
             if (user) {
                 drawerToggleArea.style.display = 'block';
-                // Check if current view is auth or home-view
+                
+                // Get display name for the post card title
+                db.collection('users').doc(user.uid).get().then(doc => {
+                    const data = doc.data();
+                    const displayName = data ? data.displayName : user.displayName;
+                    document.getElementById('current-user-name').innerText = displayName || 'User';
+                });
+                
                 if (window.location.hash === '' || window.location.hash.includes('#auth-view')) {
-                    showView('home-view', null, true); // Use replaceState for initial load to prevent back button issues
+                    showView('home-view', null, true); 
                 } else {
-                    // Check hash on refresh and trigger load via showView
                     const hashParts = window.location.hash.substring(1).split('/');
                     const viewId = hashParts[0] || 'home-view';
                     const targetId = hashParts[1] || user.uid;
@@ -1091,9 +1114,7 @@
                 
                 loadDrawerProfile(user.uid); 
                 startNotificationListener(user.uid); 
-
-                document.getElementById('current-user-name').innerText = user.displayName;
-                switchFeedView(currentFeedView, true); // Initial feed load 
+                switchFeedView(currentFeedView, true); 
             } else {
                 drawerToggleArea.style.display = 'none';
                 showView('auth-view', null, true);
@@ -1146,28 +1167,26 @@
                 loadDrawerProfile(uid); 
             } catch (error) {
                 alert("Error updating profile: " + error.message);
+                console.error("Error updating profile:", error);
             }
         }
         
-        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW
+        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW (DEBUG VERSION - CRITICAL FOR TRACING SECURITY RULE ERRORS)
         async function toggleFollow(targetUserId, isCurrentlyFollowing) {
             if (!auth.currentUser || auth.currentUser.uid === targetUserId) return;
 
             const currentUserId = auth.currentUser.uid;
-            const batch = db.batch();
-
             const currentUserRef = db.collection('users').doc(currentUserId);
             const targetUserRef = db.collection('users').doc(targetUserId);
             const followingRef = db.collection('users').doc(currentUserId).collection('following').doc(targetUserId);
             const followersRef = db.collection('users').doc(targetUserId).collection('followers').doc(currentUserId);
 
             try {
-                // FIX: Ensured the transaction is performed atomically as intended
                 await db.runTransaction(async (transaction) => {
                      const currentUserDoc = await transaction.get(currentUserRef);
                      const targetUserDoc = await transaction.get(targetUserRef);
 
-                    if (!currentUserDoc.exists || !targetUserDoc.exists) throw "User not found!";
+                    if (!currentUserDoc.exists || !targetUserDoc.exists) throw new Error("Target user not found!");
                     
                     if (isCurrentlyFollowing) {
                         // --- UNFOLLOW OPERATION ---
@@ -1185,8 +1204,6 @@
 
                         // Create Notification
                         const sourceUserName = auth.currentUser.displayName;
-                        // IMPORTANT: Need to use 'await' here to ensure the notification is created within the transaction scope or handle it outside if it causes timeout. 
-                        // For simplicity in a local app, we'll keep it as an async call within the transaction scope, but be mindful of latency.
                         await createNotification(
                             targetUserId, 
                             'follow', 
@@ -1205,13 +1222,14 @@
                     loadFeed(); 
                 }
             } catch (error) {
-                console.error("Error executing follow transaction:", error);
-                alert("Error updating follow status. Check console.");
+                // <<< CRITICAL DEBUGGING LINE >>>
+                console.error("FIREBASE PERMISSION ERROR DETAILS:", error);
+                alert("Error updating follow status. Check console for details.");
             }
         }
 
 
-        // --- 7. POSTING, LIKES, DELETION, AND SHARING LOGIC (FIXED LIKE/COMMENT LOGIC) ---
+        // --- 7. POSTING, LIKES, DELETION, AND SHARING LOGIC ---
         
         function createPost() {
             const postText = document.getElementById('post-text').value.trim();
@@ -1236,10 +1254,11 @@
             })
             .catch(error => {
                 alert("Error creating post: " + error.message);
+                console.error("Error creating post:", error);
             });
         }
         
-        // FUNCTION FOR LIKES (FIXED)
+        // FUNCTION FOR LIKES (DEBUG VERSION)
         async function toggleLike(postId) {
             if (!auth.currentUser) {
                 alert("You must be logged in to like posts.");
@@ -1250,12 +1269,10 @@
             const uid = auth.currentUser.uid;
 
             try {
-                // Ensure the transaction is complete and returns a promise
                 await db.runTransaction(async (transaction) => {
                     const postDoc = await transaction.get(postRef);
 
                     if (!postDoc.exists) {
-                        // Throwing an error stops the transaction
                         throw new Error("Post does not exist!");
                     }
 
@@ -1285,10 +1302,6 @@
                         likedBy: updatedLikedBy
                     });
                     
-                    // Create Notification (outside of transaction if it's not a read/write operation on postDoc)
-                    // We call the async function inside the transaction for atomic read/write, 
-                    // and allow the notification to be created afterward (or handle the promise outside). 
-                    // For the sake of demonstration and simple rollback, we'll keep the function call here.
                     if (notificationNeeded) {
                          const sourceUserName = auth.currentUser.displayName;
                         await createNotification(
@@ -1301,8 +1314,8 @@
                     }
                 });
             } catch (error) {
-                console.error("Error toggling like:", error.message);
-                // alert(`Error toggling like: ${error.message}`); // Enable for better debugging
+                console.error("FIREBASE PERMISSION ERROR DETAILS (Like):", error.message);
+                alert("Error toggling like. Check console for details.");
             }
         }
         
@@ -1392,15 +1405,21 @@
         async function getFollowingUids() {
             if (!auth.currentUser) return [];
 
-            const followingSnapshot = await db.collection('users').doc(auth.currentUser.uid)
-                .collection('following')
-                .get();
+            try {
+                 const followingSnapshot = await db.collection('users').doc(auth.currentUser.uid)
+                    .collection('following')
+                    .get();
 
-            const followedUids = followingSnapshot.docs.map(doc => doc.id);
-            
-            followedUids.push(auth.currentUser.uid); 
-            
-            return followedUids.slice(0, 10); 
+                const followedUids = followingSnapshot.docs.map(doc => doc.id);
+                
+                followedUids.push(auth.currentUser.uid); 
+                
+                return followedUids.slice(0, 10); 
+            } catch (error) {
+                console.error("Error fetching following UIDs:", error);
+                // If fetching following UIDs fails (e.g., due to rules), fall back to only the current user's UID
+                return [auth.currentUser.uid];
+            }
         }
 
         function renderPost(post) {
@@ -1452,6 +1471,8 @@
                 unsubscribeFromFeed();
             }
             
+            if (!auth.currentUser) return;
+
             const feedContainer = document.querySelector('.feed-column');
             // Remove previous posts, keeping the first card (new post area)
             const postCreationCard = feedContainer.querySelector('.card:first-child');
@@ -1527,6 +1548,8 @@
                 unsubscribeFromFeed();
             }
             
+            if (!auth.currentUser) return;
+
             const feedContainer = document.querySelector('.feed-column');
             feedContainer.querySelectorAll('.post-card').forEach(card => card.remove()); 
             
@@ -1611,7 +1634,7 @@
         }
 
 
-        // --- 9. REAL-TIME COMMENT LOGIC (FIXED COMMENT LIKE LOGIC) ---
+        // --- 9. REAL-TIME COMMENT LOGIC ---
         
         async function toggleCommentLike(postId, commentId) {
             if (!auth.currentUser) {
@@ -1623,7 +1646,6 @@
             const uid = auth.currentUser.uid;
 
             try {
-                // FIX: Ensure the transaction is complete and returns a promise
                 await db.runTransaction(async (transaction) => {
                     const commentDoc = await transaction.get(commentRef);
 
@@ -1653,8 +1675,8 @@
                     });
                 });
             } catch (error) {
-                console.error("Error toggling comment like:", error.message);
-                // alert(`Error toggling comment like: ${error.message}`); // Enable for better debugging
+                console.error("FIREBASE PERMISSION ERROR DETAILS (Comment Like):", error.message);
+                alert("Error toggling comment like. Check console for details.");
             }
         }
 
@@ -1752,13 +1774,13 @@
             });
         }
 
-        // FUNCTION FOR SUBMITTING COMMENT (FIXED)
+        // FUNCTION FOR SUBMITTING COMMENT (DEBUG VERSION)
         async function submitComment() {
             const postId = document.getElementById('active-post-id').value;
             const input = document.getElementById('comment-input');
             const content = input.value.trim();
 
-            if (!content) return;
+            if (!content || !auth.currentUser) return;
             
             const uid = auth.currentUser.uid;
             const displayName = auth.currentUser.displayName || 'Anonymous';
@@ -1788,7 +1810,6 @@
                     
                     // 3. Create Notification
                     if (postDoc.data().userId !== uid) {
-                         // Await added for async call inside transaction
                          await createNotification( 
                             postDoc.data().userId, 
                             'comment', 
@@ -1802,8 +1823,8 @@
                 input.value = '';
 
             } catch (error) {
-                console.error("Error submitting comment (Check Security Rules):", error.message);
-                // alert(`Error submitting comment: ${error.message}`); // Enable for better debugging
+                console.error("FIREBASE PERMISSION ERROR DETAILS (Comment Submit):", error.message);
+                alert("Error submitting comment. Check console for details.");
             }
         }
 
@@ -1869,6 +1890,8 @@
         
         // FUNCTION: Opens the chat window
         async function loadChat(recipientName) { 
+            if (!auth.currentUser) return alert("Please log in to use chat.");
+
             const recipientId = MOCK_RECIPIENTS[recipientName]; // Get mock UID
             if (!recipientId) return alert("Error: Recipient UID not found.");
 

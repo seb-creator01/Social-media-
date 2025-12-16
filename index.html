@@ -486,7 +486,7 @@
             
             <a href="#" onclick="alert('Bookmarks feature coming soon!')"><i class="fas fa-bookmark"></i> Bookmarks</a>
             
-            <a id="drawer-admin-link" href="#" onclick="navigateAndClose('admin-view')" style="display: none; color: var(--color-admin-accent);">
+            <a id="drawer-admin-link" href="#" onclick="navigateAndClose('admin-view')" style="display: flex; color: var(--color-admin-accent);">
                 <i class="fas fa-shield-alt"></i> Admin Dashboard
             </a>
             
@@ -1027,7 +1027,10 @@
                      if (currentAdminUser.isAdmin) {
                          drawerAdminLink.style.display = 'flex';
                      } else {
-                         drawerAdminLink.style.display = 'none';
+                         // NOTE: Since we forced display: flex in HTML, this line will be ignored 
+                         // unless you remove the manual inline style above!
+                         // drawerAdminLink.style.display = 'none'; 
+                         
                          // If we are currently on the admin-view, redirect them home
                          if (window.location.hash.includes('#admin-view')) {
                             showView('home-view', null, false);
@@ -1035,7 +1038,7 @@
                      }
                  } else {
                      currentAdminUser.isAdmin = false;
-                     drawerAdminLink.style.display = 'none';
+                     // drawerAdminLink.style.display = 'none'; 
                  }
                  console.log(`Admin status updated: ${currentAdminUser.isAdmin}`);
              }, error => {
@@ -2260,7 +2263,12 @@
 
         // FUNCTION: Load reports for the Admin view (MOCK/SIMULATED DATA ACCESS)
         async function loadAdminReports() {
-            if (!currentAdminUser.isAdmin) return;
+            // Check admin status on every load for extra security
+            if (auth.currentUser.uid !== ADMIN_UID && currentAdminUser.isAdmin !== true) {
+                 alert("Authorization Failed: Non-admin attempted to access dashboard.");
+                 showView('home-view', null, false);
+                 return;
+            }
             
             const reportsList = document.getElementById('admin-reports-list');
             reportsList.innerHTML = '<p style="text-align: center; color: var(--color-secondary);">Fetching data from the /reports collection...</p>';

@@ -571,6 +571,8 @@
                     </div>
                 </div>
                 
+                <div id="admin-status-check" style="max-width: 600px; margin: 0 auto 20px auto; padding: 15px; border-radius: 6px; text-align: center; display: none;"></div>
+                
                 </div>
         </div>
 
@@ -1007,37 +1009,51 @@
             return { displayName: 'User Not Found', email: 'N/A', bio: 'Error fetching profile.', followersCount: 0, followingCount: 0, emailVisibility: 'private', isAdmin: false, id: uid };
         }
 
-        // The secure way to check admin status and manage the UI
+        // The secure way to check admin status and manage the UI (REVISED FOR MOBILE DEBUGGING)
         auth.onAuthStateChanged(user => {
+            const adminStatusDiv = document.getElementById('admin-status-check');
+            adminStatusDiv.style.display = 'none'; // Hide by default
+
             if (user) {
                 drawerToggleArea.style.display = 'block';
                 
                 // 1. SECURE ADMIN CHECK: Get the ID Token result to read custom claims
-                // Passing 'true' forces a token refresh, which is good for immediate claim updates
                 user.getIdTokenResult(true) 
                     .then((idTokenResult) => {
                         
-                        // <<< DEBUG LINE ADDED FOR ADMIN CHECK DIAGNOSIS >>>
-                        console.log("Admin Claims Check Result:", idTokenResult.claims);
-                        // <<< END DEBUG LINE >>>
-                        
-                        // Check for the custom claim 'admin: true'
-                        const isAdmin = idTokenResult.claims.admin === true;
+                        const claims = idTokenResult.claims;
+                        const isAdmin = claims.admin === true;
                         currentAdminUser.isAdmin = isAdmin; // Update global state
                         
+                        // **<<< VISUAL DEBUGGING FOR MOBILE >>>**
                         if (isAdmin) {
-                            // Display the link securely based on custom claim
                             drawerAdminLink.style.display = 'flex'; 
-                            console.log("Admin Check: SUCCESS - Displaying Dashboard link.");
+                            // Display a success message visually instead of console log
+                            adminStatusDiv.style.display = 'block';
+                            adminStatusDiv.style.backgroundColor = '#d1fae5'; // Green background
+                            adminStatusDiv.style.color = '#065f46'; // Dark green text
+                            adminStatusDiv.innerHTML = '<i class="fas fa-check-circle"></i> **Admin Check Success!** Dashboard link available.';
+                            setTimeout(() => adminStatusDiv.style.display = 'none', 5000); // Hide after 5 seconds
+
                         } else {
-                            // Hide the link for all regular users
                             drawerAdminLink.style.display = 'none'; 
-                            console.log("Admin Check: DENIED - Hiding Dashboard link.");
-                            // If user was previously on admin view, redirect them
+                            // Display a failure message visually
+                            adminStatusDiv.style.display = 'block';
+                            adminStatusDiv.style.backgroundColor = '#fee2e2'; // Red background
+                            adminStatusDiv.style.color = '#991b1b'; // Dark red text
+                            
+                            // Check for the most common failure reason: no 'admin' claim at all
+                            const adminClaimStatus = claims.hasOwnProperty('admin') 
+                                ? `Admin claim found: **${claims.admin}**` 
+                                : `**Admin claim MISSING** in token.`;
+                                
+                            adminStatusDiv.innerHTML = `<i class="fas fa-times-circle"></i> **Admin Check Failed.** ${adminClaimStatus}`;
+                            
                             if (window.location.hash.includes('#admin-view')) {
                                 showView('home-view', null, true); 
                             }
                         }
+                        // **<<< END VISUAL DEBUGGING >>>**
 
                         // 2. CONTINUE regular login flow:
                         
@@ -1064,23 +1080,16 @@
                     })
                     .catch(error => {
                         console.error("Error checking admin claim:", error);
-                        // On any error, hide the link and state for safety
                         drawerAdminLink.style.display = 'none';
                         currentAdminUser.isAdmin = false;
                         showView('home-view', null, true);
                     });
             } else {
                 drawerToggleArea.style.display = 'none';
-                drawerAdminLink.style.display = 'none'; // Ensure it's hidden when logged out
+                drawerAdminLink.style.display = 'none';
                 showView('auth-view', null, true);
-                if (unsubscribeFromFeed) {
-                    unsubscribeFromFeed();
-                    unsubscribeFromFeed = null;
-                }
-                if (unsubscribeFromNotifications) { 
-                    unsubscribeFromNotifications();
-                    unsubscribeFromNotifications = null;
-                }
+                if (unsubscribeFromFeed) { unsubscribeFromFeed(); unsubscribeFromFeed = null; }
+                if (unsubscribeFromNotifications) { unsubscribeFromNotifications(); unsubscribeFromNotifications = null; }
                 userCache = {};
                 currentAdminUser.isAdmin = false;
             }
@@ -1412,7 +1421,7 @@
             });
         }
         
-        // FUNCTION FOR LIKES (REVISED CLIENT-SIDE FIX - USING SINGLE UPDATE)
+        // FUNCTION FOR LIKES (REVISED FOR ATOMIC ARRAY UPDATE AND GLITCH FIX)
         async function toggleLike(postId) {
             if (!auth.currentUser) {
                 alert("You must be logged in to like posts.");
@@ -1421,6 +1430,14 @@
 
             const postRef = db.collection('posts').doc(postId);
             const uid = auth.currentUser.uid;
+            const postElement = document.getElementById(`post-${postId}`);
+            const likeButton = postElement.querySelector('.post-actions button:nth-child(1)'); // The first button (Like)
+            
+            // **GLITCH FIX: Disable the button immediately**
+            if (likeButton) {
+                likeButton.disabled = true;
+            }
+
 
             try {
                 const postDoc = await postRef.get();
@@ -1431,24 +1448,28 @@
                 const postData = postDoc.data();
                 const likedBy = postData.likedBy || [];
                 const postAuthorId = postData.userId; 
-                let newLikesCount;
+                
                 let updateOperation;
+                let newLikesCount;
                 let notificationNeeded = false;
+                let isLiking;
 
                 if (likedBy.includes(uid)) {
-                    // UNLIKE: Remove UID from likedBy array and decrement count
-                    newLikesCount = firebase.firestore.FieldValue.increment(-1);
+                    // UNLIKE: Use arrayRemove and decrement count
                     updateOperation = firebase.firestore.FieldValue.arrayRemove(uid);
+                    newLikesCount = firebase.firestore.FieldValue.increment(-1);
+                    isLiking = false;
                 } else {
-                    // LIKE: Add UID to likedBy array and increment count
-                    newLikesCount = firebase.firestore.FieldValue.increment(1);
+                    // LIKE: Use arrayUnion and increment count
                     updateOperation = firebase.firestore.FieldValue.arrayUnion(uid);
+                    newLikesCount = firebase.firestore.FieldValue.increment(1);
+                    isLiking = true;
                     if (postAuthorId !== uid) {
                         notificationNeeded = true;
                     }
                 }
 
-                // Use a single update call for array modification and count update
+                // Use a single, atomic update call for both array modification and count update
                 await postRef.update({
                     likesCount: newLikesCount,
                     likedBy: updateOperation
@@ -1467,8 +1488,11 @@
                 }
 
             } catch (error) {
-                console.error("FIREBASE UPDATE/ARRAY OPERATION FAILURE DETAILS (Like):", error);
+                console.error("FIREBASE ATOMIC UPDATE FAILURE DETAILS (Like):", error);
                 alert("Error toggling like. Check console for details.");
+            } finally {
+                 // The button will be re-enabled when the real-time feed listener updates the post card.
+                 // This ensures the UI reflects the database state correctly.
             }
         }
         
@@ -1682,6 +1706,11 @@
                         if (existingPostElement) {
                             const updatedPost = renderPost(postData);
                             existingPostElement.innerHTML = updatedPost.innerHTML;
+                            // Re-enable the button if it was disabled during the like process
+                            const likeButton = existingPostElement.querySelector('.post-actions button:nth-child(1)');
+                            if (likeButton) {
+                                likeButton.disabled = false;
+                            }
                         }
                     } else if (change.type === "removed") {
                         if (existingPostElement) {
@@ -1749,6 +1778,11 @@
                         if (existingPostElement) {
                             const updatedPost = renderPost(postData);
                             existingPostElement.innerHTML = updatedPost.innerHTML;
+                             // Re-enable the button if it was disabled during the like process
+                             const likeButton = existingPostElement.querySelector('.post-actions button:nth-child(1)');
+                            if (likeButton) {
+                                likeButton.disabled = false;
+                            }
                         }
                     } else if (change.type === "removed") {
                         if (existingPostElement) {
@@ -2383,13 +2417,14 @@
         // FUNCTION: ADMIN ACTION - Search User (MOCK)
         async function searchAdminUser() {
              const input = document.getElementById('admin-user-search-input').value.trim();
-             const resultArea = document.getElementById('admin-user-search-result');
+             const resultArea = document.getElementById('admin-user-management-area');
+             const resultP = document.getElementById('admin-user-search-result');
              if (!input) {
-                 resultArea.innerHTML = "Please enter a UID or Display Name.";
+                 resultP.innerHTML = "Please enter a UID or Display Name.";
                  return;
              }
              
-             resultArea.innerHTML = "Searching...";
+             resultP.innerHTML = "Searching...";
 
              try {
                  let userData = null;
@@ -2411,9 +2446,11 @@
 
                  if (userData && userData.displayName !== 'User Not Found') {
                     // Result found!
-                    resultArea.innerHTML = `
+                    resultP.innerHTML = `
                         <p style="margin-bottom: 5px;"><strong>Found User:</strong> ${userData.displayName} (${userData.email})</p>
                         <p style="margin-bottom: 10px;"><strong>UID:</strong> <span style="font-family: monospace;">${userData.id || input}</span></p>
+                    `;
+                    resultArea.innerHTML += `
                         <button class="btn-danger" style="margin-right: 10px;" onclick="adminBanUser('${userData.id || input}')">
                             <i class="fas fa-ban"></i> Ban User
                         </button>
@@ -2422,12 +2459,12 @@
                         </button>
                     `;
                  } else {
-                     resultArea.innerHTML = `<p style="color: var(--color-danger);">No user found matching "${input}".</p>`;
+                     resultP.innerHTML = `<p style="color: var(--color-danger);">No user found matching "${input}".</p>`;
                  }
 
              } catch (error) {
                  console.error("ADMIN USER SEARCH ERROR:", error);
-                 resultArea.innerHTML = `<p style="color: var(--color-danger);">Error during user search.</p>`;
+                 resultP.innerHTML = `<p style="color: var(--color-danger);">Error during user search.</p>`;
              }
         }
         
@@ -2444,7 +2481,7 @@
                  bannedAt: firebase.firestore.FieldValue.serverTimestamp()
              }).then(() => {
                  alert(`User ${userId} marked as BANNED in Firestore! (Requires Auth function for full ban)`);
-                 document.getElementById('admin-user-search-result').innerHTML = `<p style="color: var(--color-danger); font-weight: 700;">User ${userId} is BANNED in Firestore. Ban action recorded.</p>`;
+                 document.getElementById('admin-user-management-area').innerHTML = `<p style="text-align: center; color: var(--color-danger); font-weight: 700;">User ${userId} is BANNED in Firestore. Ban action recorded.</p>`;
              }).catch(error => {
                   console.error("BAN ERROR:", error);
                   alert("Error marking user as banned. Check console.");

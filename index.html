@@ -1171,7 +1171,7 @@
             }
         }
         
-        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW (DEBUG VERSION - CRITICAL FOR TRACING SECURITY RULE ERRORS)
+        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW (REVISED CLIENT-SIDE FIX - USING BATCH)
         async function toggleFollow(targetUserId, isCurrentlyFollowing) {
             if (!auth.currentUser || auth.currentUser.uid === targetUserId) return;
 
@@ -1182,48 +1182,50 @@
             const followersRef = db.collection('users').doc(targetUserId).collection('followers').doc(currentUserId);
 
             try {
-                await db.runTransaction(async (transaction) => {
-                     const currentUserDoc = await transaction.get(currentUserRef);
-                     const targetUserDoc = await transaction.get(targetUserRef);
-
-                    if (!currentUserDoc.exists || !targetUserDoc.exists) throw new Error("Target user not found!");
+                // Use a Firestore Batch for multiple guaranteed writes instead of a Transaction, 
+                // as transactions are more strict and usually fail when documents are read before writing.
+                const batch = db.batch(); 
                     
-                    if (isCurrentlyFollowing) {
-                        // --- UNFOLLOW OPERATION ---
-                        transaction.delete(followingRef);
-                        transaction.delete(followersRef);
-                        transaction.update(currentUserRef, { followingCount: firebase.firestore.FieldValue.increment(-1) });
-                        transaction.update(targetUserRef, { followersCount: firebase.firestore.FieldValue.increment(-1) });
-                        
-                    } else {
-                        // --- FOLLOW / FOLLOW BACK OPERATION ---
-                        transaction.set(followingRef, { followedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                        transaction.set(followersRef, { followedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                        transaction.update(currentUserRef, { followingCount: firebase.firestore.FieldValue.increment(1) });
-                        transaction.update(targetUserRef, { followersCount: firebase.firestore.FieldValue.increment(1) });
+                if (isCurrentlyFollowing) {
+                    // --- UNFOLLOW OPERATION ---
+                    batch.delete(followingRef);
+                    batch.delete(followersRef);
+                    batch.update(currentUserRef, { followingCount: firebase.firestore.FieldValue.increment(-1) });
+                    batch.update(targetUserRef, { followersCount: firebase.firestore.FieldValue.increment(-1) });
+                    
+                } else {
+                    // --- FOLLOW / FOLLOW BACK OPERATION ---
+                    batch.set(followingRef, { followedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    batch.set(followersRef, { followedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    batch.update(currentUserRef, { followingCount: firebase.firestore.FieldValue.increment(1) });
+                    batch.update(targetUserRef, { followersCount: firebase.firestore.FieldValue.increment(1) });
 
-                        // Create Notification
-                        const sourceUserName = auth.currentUser.displayName;
-                        await createNotification(
-                            targetUserId, 
-                            'follow', 
-                            sourceUserName, 
-                            currentUserId
-                        );
-                    }
-                });
+                    // Create Notification 
+                    const sourceUserName = auth.currentUser.displayName;
+                    // Removed await inside the transaction/batch structure for better performance/reliability
+                    createNotification(
+                        targetUserId, 
+                        'follow', 
+                        sourceUserName, 
+                        currentUserId
+                    ); 
+                }
+
+                await batch.commit(); // Commit the batch of writes
                 
-                userCache[currentUserId] = null; // Invalidate cache
-                userCache[targetUserId] = null; // Invalidate cache
+                userCache[currentUserId] = null; 
+                userCache[targetUserId] = null; 
                 
+                // Re-run the profile load to update the button and counts
                 loadProfileData(targetUserId); 
                 loadDrawerProfile(currentUserId); 
                 if(currentFeedView === 'following') {
                     loadFeed(); 
                 }
+                
             } catch (error) {
                 // <<< CRITICAL DEBUGGING LINE >>>
-                console.error("FIREBASE PERMISSION ERROR DETAILS:", error);
+                console.error("FIREBASE TRANSACTION/BATCH FAILURE DETAILS:", error);
                 alert("Error updating follow status. Check console for details.");
             }
         }
@@ -1258,7 +1260,7 @@
             });
         }
         
-        // FUNCTION FOR LIKES (DEBUG VERSION)
+        // FUNCTION FOR LIKES (REVISED CLIENT-SIDE FIX - USING SINGLE UPDATE)
         async function toggleLike(postId) {
             if (!auth.currentUser) {
                 alert("You must be logged in to like posts.");
@@ -1269,52 +1271,51 @@
             const uid = auth.currentUser.uid;
 
             try {
-                await db.runTransaction(async (transaction) => {
-                    const postDoc = await transaction.get(postRef);
+                const postDoc = await postRef.get();
+                if (!postDoc.exists) {
+                    throw new Error("Post does not exist!");
+                }
 
-                    if (!postDoc.exists) {
-                        throw new Error("Post does not exist!");
-                    }
+                const postData = postDoc.data();
+                const likedBy = postData.likedBy || [];
+                const postAuthorId = postData.userId; 
+                let newLikesCount;
+                let updateOperation;
+                let notificationNeeded = false;
 
-                    const postData = postDoc.data();
-                    const likedBy = postData.likedBy || [];
-                    const postAuthorId = postData.userId; 
-                    let newLikesCount = postData.likesCount || 0;
-                    let updatedLikedBy;
-                    let notificationNeeded = false;
-                    
-                    if (likedBy.includes(uid)) {
-                        // UNLIKE
-                        updatedLikedBy = likedBy.filter(id => id !== uid);
-                        newLikesCount--;
-                    } else {
-                        // LIKE
-                        updatedLikedBy = [...likedBy, uid];
-                        newLikesCount++;
-                        if (postAuthorId !== uid) {
-                            notificationNeeded = true;
-                        }
+                if (likedBy.includes(uid)) {
+                    // UNLIKE: Remove UID from likedBy array and decrement count
+                    newLikesCount = firebase.firestore.FieldValue.increment(-1);
+                    updateOperation = firebase.firestore.FieldValue.arrayRemove(uid);
+                } else {
+                    // LIKE: Add UID to likedBy array and increment count
+                    newLikesCount = firebase.firestore.FieldValue.increment(1);
+                    updateOperation = firebase.firestore.FieldValue.arrayUnion(uid);
+                    if (postAuthorId !== uid) {
+                        notificationNeeded = true;
                     }
+                }
 
-                    // Perform the update
-                    transaction.update(postRef, {
-                        likesCount: newLikesCount,
-                        likedBy: updatedLikedBy
-                    });
-                    
-                    if (notificationNeeded) {
-                         const sourceUserName = auth.currentUser.displayName;
-                        await createNotification(
-                            postAuthorId, 
-                            'like', 
-                            sourceUserName, 
-                            uid, 
-                            postId
-                        );
-                    }
+                // Use a single update call for array modification and count update
+                await postRef.update({
+                    likesCount: newLikesCount,
+                    likedBy: updateOperation
                 });
+                
+                // Handle notification outside the main update for reliability
+                if (notificationNeeded) {
+                     const sourceUserName = auth.currentUser.displayName;
+                    await createNotification(
+                        postAuthorId, 
+                        'like', 
+                        sourceUserName, 
+                        uid, 
+                        postId
+                    );
+                }
+
             } catch (error) {
-                console.error("FIREBASE PERMISSION ERROR DETAILS (Like):", error.message);
+                console.error("FIREBASE UPDATE/ARRAY OPERATION FAILURE DETAILS (Like):", error);
                 alert("Error toggling like. Check console for details.");
             }
         }

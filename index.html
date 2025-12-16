@@ -1004,7 +1004,7 @@
                 console.error("Error fetching user data:", error);
             }
             // Return safe defaults if fetch fails
-            return { displayName: 'User Not Found', email: 'N/A', bio: 'Error fetching profile.', followersCount: 0, followingCount: 0, emailVisibility: 'private', isAdmin: false };
+            return { displayName: 'User Not Found', email: 'N/A', bio: 'Error fetching profile.', followersCount: 0, followingCount: 0, emailVisibility: 'private', isAdmin: false, id: uid };
         }
 
         // The secure way to check admin status and manage the UI
@@ -1016,6 +1016,10 @@
                 // Passing 'true' forces a token refresh, which is good for immediate claim updates
                 user.getIdTokenResult(true) 
                     .then((idTokenResult) => {
+                        
+                        // <<< DEBUG LINE ADDED FOR ADMIN CHECK DIAGNOSIS >>>
+                        console.log("Admin Claims Check Result:", idTokenResult.claims);
+                        // <<< END DEBUG LINE >>>
                         
                         // Check for the custom claim 'admin: true'
                         const isAdmin = idTokenResult.claims.admin === true;
@@ -1277,7 +1281,7 @@
             }
         }
         
-        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW (ULTRA-DEFENSIVE VERSION)
+        // FUNCTION: TOGGLE FOLLOW/UNFOLLOW (ULTRA-DEFENSIVE VERSION + GLITCH FIX)
         async function toggleFollow(targetUserId, isCurrentlyFollowing) {
             if (!auth.currentUser || auth.currentUser.uid === targetUserId) return;
 
@@ -1285,12 +1289,28 @@
             const followingRef = db.collection('users').doc(currentUserId).collection('following').doc(targetUserId);
             const followersRef = db.collection('users').doc(targetUserId).collection('followers').doc(currentUserId);
             
+            const profileButtonArea = document.getElementById('profile-button-area');
+            
+            // 1. **GLITCH FIX: Disable the button immediately**
+            const followButton = profileButtonArea.querySelector('button');
+            if (!followButton) return;
+            followButton.disabled = true;
+
+            // 2. **GLITCH FIX: Set temporary UI feedback**
+            const tempText = isCurrentlyFollowing 
+                ? '<i class="fas fa-spinner fa-spin"></i> Unfollowing...'
+                : '<i class="fas fa-spinner fa-spin"></i> Following...';
+            followButton.innerHTML = tempText;
+
+
             // Get the documents defensively to ensure fields exist or are initialized
             const currentUserDoc = await db.collection('users').doc(currentUserId).get();
             const targetUserDoc = await db.collection('users').doc(targetUserId).get();
 
             if (!currentUserDoc.exists || !targetUserDoc.exists) {
                 alert("Error: One or both user profiles are missing from the database.");
+                followButton.disabled = false; // Re-enable on error
+                loadProfileData(targetUserId); // Revert UI
                 return;
             }
             
@@ -1331,7 +1351,6 @@
                 // 4. Create Notification 
                 if (!isCurrentlyFollowing) {
                     const sourceUserName = auth.currentUser.displayName;
-                    // Removed await inside the transaction/batch structure for better performance/reliability
                     createNotification(
                         targetUserId, 
                         'follow', 
@@ -1345,16 +1364,21 @@
                 userCache[currentUserId] = null; 
                 userCache[targetUserId] = null; 
                 
+                // 3. Re-enable and update UI via reload
                 loadProfileData(targetUserId); 
                 loadDrawerProfile(currentUserId); 
                 if(currentFeedView === 'following') {
                     loadFeed(); 
                 }
                 
+                
             } catch (error) {
                 // <<< CRITICAL DEBUGGING LINE >>>
                 console.error("FIREBASE TRANSACTION/BATCH FAILURE DETAILS:", error);
                 alert("Error updating follow status. Check console for details.");
+            } finally {
+                // Ensure the button is re-enabled even on failure, but loadProfileData should handle the final state
+                followButton.disabled = false;
             }
         }
 

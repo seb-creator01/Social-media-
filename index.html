@@ -486,7 +486,7 @@
             
             <a href="#" onclick="alert('Bookmarks feature coming soon!')"><i class="fas fa-bookmark"></i> Bookmarks</a>
             
-            <a id="drawer-admin-link" href="#" onclick="navigateAndClose('admin-view')" style="display: flex; color: var(--color-admin-accent);">
+            <a id="drawer-admin-link" href="#" onclick="navigateAndClose('admin-view')" style="display: none; color: var(--color-admin-accent);">
                 <i class="fas fa-shield-alt"></i> Admin Dashboard
             </a>
             
@@ -707,7 +707,7 @@
             </div>
         </div>
         
-        <div id="comment-modal">
+        <div id="comment-modal" style="display: none;">
             <div class="card">
                 <div class="comment-header-bar">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -751,9 +751,8 @@
         let isSigningUp = true; 
         let currentProfileTargetId = null; 
         
-        // NEW ADMIN VAR: Your hardcoded UID (FyaLCr7lSbR21pDuSTmCacVwiCC3)
-        const ADMIN_UID = 'FyaLCr7lSbR21pDuSTmCacVwiCC3'; 
-        let currentAdminUser = { isAdmin: false }; // Global state for admin status
+        // Global state for admin status - NOT USED FOR CHECK, but maintained for conditional functions
+        let currentAdminUser = { isAdmin: false }; 
 
         // CHAT STATE
         let activeChatId = null; 
@@ -774,11 +773,11 @@
         const profilePageView = document.getElementById('profile-page-view');
         const chatPageView = document.getElementById('chat-page-view');
         const notificationsView = document.getElementById('notifications-view'); 
-        const adminView = document.getElementById('admin-view'); // NEW ADMIN VIEW REF
+        const adminView = document.getElementById('admin-view'); // ADMIN VIEW REF
         const sideDrawer = document.getElementById('side-drawer');
         const drawerToggleArea = document.getElementById('drawer-toggle-area');
         const drawerOverlay = document.getElementById('drawer-overlay');
-        const drawerAdminLink = document.getElementById('drawer-admin-link'); // NEW ADMIN LINK REF
+        const drawerAdminLink = document.getElementById('drawer-admin-link'); // ADMIN LINK REF
         const settingsToggle = document.querySelector('.settings-toggle');
         const settingsMenu = document.querySelector('.settings-menu');
         const notificationCountBadge = document.getElementById('notification-count');
@@ -846,8 +845,9 @@
             profilePageView.style.display = 'none';
             chatPageView.style.display = 'none';
             notificationsView.style.display = 'none'; 
-            adminView.style.display = 'none'; // NEW ADMIN VIEW HIDE
+            adminView.style.display = 'none'; 
             chatWindowModal.style.display = 'none'; 
+            document.getElementById('comment-modal').style.display = 'none';
 
             // Show the requested view
             const targetView = document.getElementById(viewId);
@@ -874,12 +874,13 @@
                 loadNotifications();
             } else if (viewId === 'home-view' && auth.currentUser) {
                 switchFeedView(currentFeedView, true); // Force a check/load
-            } else if (viewId === 'admin-view' && auth.currentUser) { // NEW ADMIN VIEW LOGIC
+            } else if (viewId === 'admin-view' && auth.currentUser) {
+                 // Check if the current user state is admin (set by the onAuthStateChanged below)
                  if (currentAdminUser.isAdmin) {
                     loadAdminReports();
                  } else {
                     // Critical Redirection if a non-admin manually types the URL
-                    alert("Authorization Required: Access Denied.");
+                    alert("Authorization Required: Access Denied. Logging access attempt.");
                     window.history.replaceState({ view: 'home-view' }, 'Home', '#home-view');
                     showView('home-view', null, true); 
                  }
@@ -937,7 +938,7 @@
         }
         toggleAuthMode();
 
-        // --- 5. AUTHENTICATION & CORE PROFILE LOGIC ---
+        // --- 5. AUTHENTICATION & CORE PROFILE LOGIC (SECURE ADMIN CHECK) ---
 
         async function handleAuth(isSignUpAction) {
             const email = document.getElementById("email").value;
@@ -962,7 +963,7 @@
                         followersCount: 0, 
                         followingCount: 0, 
                         emailVisibility: 'private', 
-                        // The isAdmin flag will be 'undefined' or 'false' by default
+                        // isAdmin flag is controlled by Firebase Admin SDK, not client side
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 } else {
@@ -978,14 +979,9 @@
                 window.history.replaceState({ view: 'auth-view' }, 'Auth', '#auth-view');
                 showView('auth-view', null, true); 
                 drawerToggleArea.style.display = 'none'; 
-                if (unsubscribeFromFeed) {
-                    unsubscribeFromFeed();
-                    unsubscribeFromFeed = null;
-                }
-                if (unsubscribeFromNotifications) { 
-                    unsubscribeFromNotifications();
-                    unsubscribeFromNotifications = null;
-                }
+                // Cleanup listeners and state
+                if (unsubscribeFromFeed) { unsubscribeFromFeed(); unsubscribeFromFeed = null; }
+                if (unsubscribeFromNotifications) { unsubscribeFromNotifications(); unsubscribeFromNotifications = null; }
                 userCache = {}; 
                 currentAdminUser.isAdmin = false; // Reset admin status on logout
             }).catch(error => {
@@ -1001,11 +997,7 @@
             try {
                 const doc = await db.collection('users').doc(uid).get();
                 if (doc.exists) {
-                    userCache[uid] = doc.data();
-                    // NEW: Ensure isAdmin is captured and cached
-                    if (uid === ADMIN_UID) {
-                        userCache[uid].isAdmin = userCache[uid].isAdmin || false; 
-                    }
+                    userCache[uid] = { ...doc.data(), id: doc.id }; // Store UID as 'id'
                     return userCache[uid];
                 }
             } catch (error) {
@@ -1015,36 +1007,81 @@
             return { displayName: 'User Not Found', email: 'N/A', bio: 'Error fetching profile.', followersCount: 0, followingCount: 0, emailVisibility: 'private', isAdmin: false };
         }
 
-        // NEW ADMIN FUNCTION: Starts listener to check and update admin status
-        function startAdminListener(uid) {
-             const userRef = db.collection('users').doc(uid);
-             
-             // This listener only runs for the logged-in user to check their admin status
-             userRef.onSnapshot(doc => {
-                 if (doc.exists) {
-                     currentAdminUser.isAdmin = doc.data().isAdmin === true;
-                     // Conditionally show/hide the drawer link based on the snapshot
-                     if (currentAdminUser.isAdmin) {
-                         drawerAdminLink.style.display = 'flex';
-                     } else {
-                         // NOTE: Since we forced display: flex in HTML, this line will be ignored 
-                         // unless you remove the manual inline style above!
-                         // drawerAdminLink.style.display = 'none'; 
-                         
-                         // If we are currently on the admin-view, redirect them home
-                         if (window.location.hash.includes('#admin-view')) {
-                            showView('home-view', null, false);
-                         }
-                     }
-                 } else {
-                     currentAdminUser.isAdmin = false;
-                     // drawerAdminLink.style.display = 'none'; 
-                 }
-                 console.log(`Admin status updated: ${currentAdminUser.isAdmin}`);
-             }, error => {
-                 console.error("Error checking admin status:", error);
-             });
-        }
+        // The secure way to check admin status and manage the UI
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                drawerToggleArea.style.display = 'block';
+                
+                // 1. SECURE ADMIN CHECK: Get the ID Token result to read custom claims
+                // Passing 'true' forces a token refresh, which is good for immediate claim updates
+                user.getIdTokenResult(true) 
+                    .then((idTokenResult) => {
+                        
+                        // Check for the custom claim 'admin: true'
+                        const isAdmin = idTokenResult.claims.admin === true;
+                        currentAdminUser.isAdmin = isAdmin; // Update global state
+                        
+                        if (isAdmin) {
+                            // Display the link securely based on custom claim
+                            drawerAdminLink.style.display = 'flex'; 
+                            console.log("Admin Check: SUCCESS - Displaying Dashboard link.");
+                        } else {
+                            // Hide the link for all regular users
+                            drawerAdminLink.style.display = 'none'; 
+                            console.log("Admin Check: DENIED - Hiding Dashboard link.");
+                            // If user was previously on admin view, redirect them
+                            if (window.location.hash.includes('#admin-view')) {
+                                showView('home-view', null, true); 
+                            }
+                        }
+
+                        // 2. CONTINUE regular login flow:
+                        
+                        // Get display name for the post card title
+                        db.collection('users').doc(user.uid).get().then(doc => {
+                            const data = doc.data();
+                            const displayName = data ? data.displayName : user.displayName;
+                            document.getElementById('current-user-name').innerText = displayName || 'User';
+                        });
+                        
+                        if (window.location.hash === '' || window.location.hash.includes('#auth-view')) {
+                            showView('home-view', null, true); 
+                        } else {
+                            const hashParts = window.location.hash.substring(1).split('/');
+                            const viewId = hashParts[0] || 'home-view';
+                            const targetId = hashParts[1] || user.uid;
+                            showView(viewId, targetId, true);
+                        }
+                        
+                        loadDrawerProfile(user.uid); 
+                        startNotificationListener(user.uid); 
+                        switchFeedView(currentFeedView, true); 
+
+                    })
+                    .catch(error => {
+                        console.error("Error checking admin claim:", error);
+                        // On any error, hide the link and state for safety
+                        drawerAdminLink.style.display = 'none';
+                        currentAdminUser.isAdmin = false;
+                        showView('home-view', null, true);
+                    });
+            } else {
+                drawerToggleArea.style.display = 'none';
+                drawerAdminLink.style.display = 'none'; // Ensure it's hidden when logged out
+                showView('auth-view', null, true);
+                if (unsubscribeFromFeed) {
+                    unsubscribeFromFeed();
+                    unsubscribeFromFeed = null;
+                }
+                if (unsubscribeFromNotifications) { 
+                    unsubscribeFromNotifications();
+                    unsubscribeFromNotifications = null;
+                }
+                userCache = {};
+                currentAdminUser.isAdmin = false;
+            }
+        });
+
 
         // Function to load data specifically for the side drawer
         async function loadDrawerProfile(uid) {
@@ -1197,47 +1234,6 @@
                 console.error("Error listening to notifications:", error);
             });
         }
-
-
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                drawerToggleArea.style.display = 'block';
-                
-                // NEW ADMIN CHECK: Start listening to the user's admin flag
-                startAdminListener(user.uid); 
-
-                // Get display name for the post card title
-                db.collection('users').doc(user.uid).get().then(doc => {
-                    const data = doc.data();
-                    const displayName = data ? data.displayName : user.displayName;
-                    document.getElementById('current-user-name').innerText = displayName || 'User';
-                });
-                
-                if (window.location.hash === '' || window.location.hash.includes('#auth-view')) {
-                    showView('home-view', null, true); 
-                } else {
-                    const hashParts = window.location.hash.substring(1).split('/');
-                    const viewId = hashParts[0] || 'home-view';
-                    const targetId = hashParts[1] || user.uid;
-                    showView(viewId, targetId, true);
-                }
-                
-                loadDrawerProfile(user.uid); 
-                startNotificationListener(user.uid); 
-                switchFeedView(currentFeedView, true); 
-            } else {
-                drawerToggleArea.style.display = 'none';
-                showView('auth-view', null, true);
-                if (unsubscribeFromFeed) {
-                    unsubscribeFromFeed();
-                    unsubscribeFromFeed = null;
-                }
-                if (unsubscribeFromNotifications) { 
-                    unsubscribeFromNotifications();
-                    unsubscribeFromNotifications = null;
-                }
-            }
-        });
 
 
         // --- 6. PROFILE EDITING & FOLLOW LOGIC ---
@@ -2264,7 +2260,7 @@
         // FUNCTION: Load reports for the Admin view (MOCK/SIMULATED DATA ACCESS)
         async function loadAdminReports() {
             // Check admin status on every load for extra security
-            if (auth.currentUser.uid !== ADMIN_UID && currentAdminUser.isAdmin !== true) {
+            if (currentAdminUser.isAdmin !== true) {
                  alert("Authorization Failed: Non-admin attempted to access dashboard.");
                  showView('home-view', null, false);
                  return;
@@ -2275,7 +2271,6 @@
             
             try {
                 // NOTE: Replace '/reports' with your actual collection path if different
-                // Security is enforced by Firebase Rules, but we rely on the client-side check here too
                 const snapshot = await db.collection('reports')
                     .where('status', '==', 'open')
                     .orderBy('timestamp', 'asc')

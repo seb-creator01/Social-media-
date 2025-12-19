@@ -1478,32 +1478,120 @@
 
         // --- 7. POSTING, LIKES, DELETION, AND SHARING LOGIC ---
         
-        function createPost() {
-            const postText = document.getElementById('post-text').value.trim();
-            if (!postText) {
-                alert("Post content cannot be empty.");
-                return;
-            }
-            const uid = auth.currentUser.uid;
-            const displayName = auth.currentUser.displayName || 'Anonymous';
+        // --- NEW LOGIC FOR ENHANCED FEATURES ---
 
-            db.collection('posts').add({
-                userId: uid,
-                displayName: displayName,
-                content: postText,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                likesCount: 0,
-                likedBy: [], 
-                commentsCount: 0
-            })
-            .then(() => {
-                document.getElementById('post-text').value = '';
-            })
-            .catch(error => {
-                alert("Error creating post: " + error.message);
-                console.error("Error creating post:", error);
+function previewImage(event) {
+    const reader = new FileReader();
+    const preview = document.getElementById('image-preview');
+    reader.onload = function() {
+        preview.src = reader.result;
+        preview.style.display = 'block';
+    }
+    reader.readAsDataURL(event.target.files[0]);
+}
+
+async function createPostWithImage() {
+    const text = document.getElementById('post-text').value;
+    const fileInput = document.getElementById('post-media');
+    const spinner = document.getElementById('upload-spinner');
+    let imageUrl = null;
+
+    if (!text && !fileInput.files[0]) return alert("Please add text or an image!");
+
+    spinner.style.display = 'block';
+
+    // 1. Upload to ImgBB if there's an image
+    if (fileInput.files[0]) {
+        const formData = new FormData();
+        formData.append("image", fileInput.files[0]);
+        
+        try {
+            const response = await fetch("https://api.imgbb.com/1/upload?key=2904f4ec8708c0282928543787723223", {
+                method: "POST",
+                body: formData
             });
+            const data = await response.json();
+            imageUrl = data.data.url;
+        } catch (e) {
+            console.error("Upload failed", e);
+            alert("Image upload failed.");
         }
+    }
+
+    // 2. Save to Firestore
+    db.collection('posts').add({
+        userId: auth.currentUser.uid,
+        username: auth.currentUser.displayName,
+        text: text,
+        imageUrl: imageUrl,
+        likes: [],
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+        spinner.style.display = 'none';
+        document.getElementById('post-text').value = '';
+        document.getElementById('image-preview').style.display = 'none';
+        fileInput.value = '';
+    });
+}
+
+// FULLSCREEN VIEW
+function enlargeImage(src) {
+    document.getElementById('fullscreen-img').src = src;
+    document.getElementById('fullscreen-overlay').style.display = 'flex';
+}
+
+// SEARCH USERS
+async function searchUsers() {
+    const query = document.getElementById('user-search-input').value.toLowerCase();
+    const resultsArea = document.getElementById('search-results-area');
+    resultsArea.innerHTML = 'Searching...';
+
+    const snapshot = await db.collection('users').where('displayName', '>=', query).limit(5).get();
+    resultsArea.innerHTML = '';
+    
+    snapshot.forEach(doc => {
+        const user = doc.data();
+        resultsArea.innerHTML += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--color-border);">
+                <span>${user.displayName}</span>
+                <button class="btn-primary" onclick="toggleFollow('${doc.id}')">Follow/Unfollow</button>
+            </div>
+        `;
+    });
+}
+
+// RECOMMENDATIONS (Basic logic: suggestions based on everyone in the DB)
+async function loadRecommendations() {
+    const list = document.getElementById('recommended-users-list');
+    const snapshot = await db.collection('users').limit(5).get();
+    list.innerHTML = '';
+    snapshot.forEach(doc => {
+        if(doc.id !== auth.currentUser.uid) {
+            list.innerHTML += `<p onclick="showView('profile-page-view', '${doc.id}')" style="cursor:pointer;">@${doc.data().displayName}</p>`;
+        }
+    });
+}
+
+// POST ACTIONS (Delete, Like, Comment)
+function deletePost(postId) {
+    if(confirm("Delete this post?")) {
+        db.collection('posts').doc(postId).delete();
+    }
+}
+
+async function toggleLike(postId) {
+    const postRef = db.collection('posts').doc(postId);
+    const doc = await postRef.get();
+    const likes = doc.data().likes || [];
+    const uid = auth.currentUser.uid;
+
+    if (likes.includes(uid)) {
+        postRef.update({ likes: firebase.firestore.FieldValue.arrayRemove(uid) });
+    } else {
+        postRef.update({ likes: firebase.firestore.FieldValue.arrayUnion(uid) });
+    }
+}
+
         
         // FUNCTION FOR LIKES (REVISED FOR ATOMIC ARRAY UPDATE AND GLITCH FIX)
         async function toggleLike(postId) {

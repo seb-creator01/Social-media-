@@ -1493,9 +1493,7 @@ async function createPostWithImage() {
         const formData = new FormData();
         formData.append("file", fileInput.files[0]);
         // REMEMBER TO REPLACE THIS WITH YOUR PRESET NAME
-        formData.append("upload_preset", "social_link_preset
-
-"); 
+        formData.append("upload_preset", "social_link_preset"); 
         
         try {
             const response = await fetch("https://api.cloudinary.com/v1_1/ddahxbbct/image/upload", {

@@ -424,6 +424,7 @@
              padding: 15px 0;
              border-bottom: 1px solid var(--color-border);
              cursor: pointer;
+             position: relative;
         }
         .chat-info {
             flex-grow: 1;
@@ -452,6 +453,20 @@
             font-size: 0.7rem;
             font-weight: bold;
             line-height: 1;
+        }
+
+        .unread-chat-badge {
+            background-color: var(--color-primary);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            position: absolute;
+            right: 10px;
         }
         
         /* Notification List Style */
@@ -2042,6 +2057,12 @@
         async function startChatAndListen(rid) {
             if (!auth.currentUser) return;
             activeRecipientUID = rid; activeChatId = getChatId(auth.currentUser.uid, rid);
+            
+            // Mark as read in our local view
+            db.collection('user_chats').doc(auth.currentUser.uid).collection('active').doc(rid).update({
+                unreadCount: 0
+            }).catch(() => {}); // Catch if doc doesn't exist yet
+
             if (unsubscribeFromMessages) unsubscribeFromMessages();
             chatMessagesContainer.innerHTML = ''; 
             unsubscribeFromMessages = db.collection('chats').doc(activeChatId).collection('messages').orderBy('timestamp', 'asc').onSnapshot(snapshot => {
@@ -2062,21 +2083,29 @@
 
         async function sendMessage() {
             const content = chatInput.value.trim(); if (!content || !activeChatId) return;
+            
+            const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+
+            // 1. Add Message to Main Feed
             db.collection('chats').doc(activeChatId).collection('messages').add({
-                content: content, senderId: auth.currentUser.uid, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                content: content, senderId: auth.currentUser.uid, timestamp: timestamp
             });
             
-            // Track the conversation globally so it appears in the chat list
+            // 2. Update my Chat List (Own View)
             db.collection('user_chats').doc(auth.currentUser.uid).collection('active').doc(activeRecipientUID).set({
                 lastMessage: content,
                 recipientId: activeRecipientUID,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
+                timestamp: timestamp,
+                unreadCount: 0
+            }, { merge: true });
+
+            // 3. Update Recipient Chat List (Increment Unread)
             db.collection('user_chats').doc(activeRecipientUID).collection('active').doc(auth.currentUser.uid).set({
                 lastMessage: content,
                 recipientId: auth.currentUser.uid,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
+                timestamp: timestamp,
+                unreadCount: firebase.firestore.FieldValue.increment(1)
+            }, { merge: true });
 
             chatInput.value = '';
         }
@@ -2111,12 +2140,17 @@
                     item.onclick = () => loadChat(chatData.recipientId);
                     
                     const initial = (userData.displayName || 'U').charAt(0);
+                    const unreadCount = chatData.unreadCount || 0;
+
                     item.innerHTML = `
                         <div class="post-avatar">${userData.profilePic ? `<img src="${userData.profilePic}">` : initial}</div>
                         <div class="chat-info">
                             <span class="chat-username">${userData.displayName}</span>
-                            <p class="last-message">${chatData.lastMessage.substring(0, 30)}${chatData.lastMessage.length > 30 ? '...' : ''}</p>
+                            <p class="last-message" style="${unreadCount > 0 ? 'font-weight:bold; color:var(--color-text)' : ''}">
+                                ${chatData.lastMessage.substring(0, 30)}${chatData.lastMessage.length > 30 ? '...' : ''}
+                            </p>
                         </div>
+                        ${unreadCount > 0 ? `<div class="unread-chat-badge">${unreadCount}</div>` : ''}
                     `;
                     list.appendChild(item);
                 });
@@ -2129,21 +2163,24 @@
             if (!content || !currentProfileTargetId) return alert("Message cannot be empty!");
             
             const chatId = getChatId(auth.currentUser.uid, currentProfileTargetId);
-            
+            const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+
             try {
                 await db.collection('chats').doc(chatId).collection('messages').add({
                     content: content,
                     senderId: auth.currentUser.uid,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    timestamp: timestamp
                 });
 
-                // Update Real-Time Chat List reflection
+                // Update my list
                 await db.collection('user_chats').doc(auth.currentUser.uid).collection('active').doc(currentProfileTargetId).set({
-                    lastMessage: content, recipientId: currentProfileTargetId, timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                    lastMessage: content, recipientId: currentProfileTargetId, timestamp: timestamp, unreadCount: 0
+                }, { merge: true });
+                
+                // Update recipient list
                 await db.collection('user_chats').doc(currentProfileTargetId).collection('active').doc(auth.currentUser.uid).set({
-                    lastMessage: content, recipientId: auth.currentUser.uid, timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                    lastMessage: content, recipientId: auth.currentUser.uid, timestamp: timestamp, unreadCount: firebase.firestore.FieldValue.increment(1)
+                }, { merge: true });
                 
                 document.getElementById('profile-message-input').value = '';
                 showToast("Message sent!");

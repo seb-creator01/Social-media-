@@ -585,6 +585,25 @@
             .recommended-sidebar { display: none; }
         }
 
+        /* NEW: STYLED MESSAGE BOX IN PROFILE */
+        .profile-message-box {
+            background-color: var(--color-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid var(--color-border);
+        }
+        .profile-message-box h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        .profile-message-box textarea {
+            height: 80px;
+            resize: none;
+            font-family: inherit;
+        }
+
     </style>
 </head>
 <body>
@@ -749,6 +768,12 @@
                     <div id="profile-button-area" style="text-align: left; margin-bottom: 15px;">
                     </div>
 
+                    <div id="profile-quick-message" class="profile-message-box" style="display: none;">
+                        <h4>Send Message</h4>
+                        <textarea id="profile-message-input" placeholder="Say hello..."></textarea>
+                        <button class="btn-primary" onclick="sendProfileQuickMessage()" style="width: 100%;">Send Message</button>
+                    </div>
+
                     <div id="profile-edit-form" style="display: none; margin-top: 20px;" class="edit-form-group">
                         <hr style="margin: 20px 0; border-color: var(--color-border);">
                         <h4>Edit Details</h4>
@@ -784,8 +809,12 @@
                     </div>
                 </div>
             </div>
-            <div id="profile-posts-container" class="feed-column">
+            
+            <div style="max-width: 600px; margin: 0 auto;">
+                <h4 style="margin-bottom: 15px; border-bottom: 1px solid var(--color-border); padding-bottom: 10px;">User's Posts</h4>
+                <div id="profile-posts-container" class="feed-column">
                 </div>
+            </div>
         </div>
 
         <div id="chat-page-view" class="view page-content" style="display: none;">
@@ -1287,6 +1316,7 @@
             const isOwner = currentUserId === targetUserId;
             
             const profileButtonArea = document.getElementById('profile-button-area');
+            const quickMessageArea = document.getElementById('profile-quick-message');
             profileButtonArea.innerHTML = 'Loading profile details...';
             document.getElementById('profile-edit-form').style.display = 'none'; 
 
@@ -1327,6 +1357,7 @@
                     document.getElementById('edit-name').value = displayName;
                     document.getElementById('edit-bio').value = data.bio || '';
                     document.getElementById('edit-email-visibility').value = emailVisibility; 
+                    quickMessageArea.style.display = 'none'; // Don't message yourself
                 } else {
                     const isFollowing = await checkFollowStatus(targetUserId);
                     const targetFollowsMe = await checkIfTargetFollowsMe(targetUserId);
@@ -1347,6 +1378,7 @@
                             <i class="fas fa-user-${isFollowing ? 'minus' : 'plus'}"></i> ${buttonText}
                         </button>
                     `;
+                    quickMessageArea.style.display = 'block'; // Show message box for others
                 }
 
                 loadUserPosts(targetUserId);
@@ -1388,6 +1420,7 @@
             document.getElementById('profile-edit-form').style.display = show ? 'block' : 'none';
             document.getElementById('profile-button-area').style.display = show ? 'none' : 'block';
             document.getElementById('profile-posts-container').style.display = show ? 'none' : 'block';
+            document.getElementById('profile-quick-message').style.display = (show || currentProfileTargetId === auth.currentUser.uid) ? 'none' : 'block';
         }
 
         // NEW: CLOUDINARY UPLOAD HELPER
@@ -1950,7 +1983,7 @@
         }
         
         async function loadChat(name) { 
-            const rid = MOCK_RECIPIENTS[name]; if (!rid) return;
+            const rid = MOCK_RECIPIENTS[name] || name; // Use UID directly if name isn't a mock key
             const data = await getUserData(rid);
             chatRecipientNameDisplay.innerText = data.displayName || name;
             chatWindowModal.style.display = 'flex';
@@ -1967,9 +2000,38 @@
         }
 
         function closeChat() {
-            chatWindowModal.style.display = 'none'; document.getElementById('chat-page-view').style.display = 'block'; 
+            chatWindowModal.style.display = 'none'; 
+            // If we came from profile, don't necessarily show chat-page-view
+            if(window.location.hash.includes('profile')) {
+                document.getElementById('profile-page-view').style.display = 'block';
+            } else {
+                document.getElementById('chat-page-view').style.display = 'block'; 
+            }
             if (unsubscribeFromMessages) { unsubscribeFromMessages(); unsubscribeFromMessages = null; }
             activeChatId = null; chatMessagesContainer.innerHTML = '';
+        }
+
+        // NEW: PROFILE QUICK MESSAGE SENDER
+        async function sendProfileQuickMessage() {
+            const content = document.getElementById('profile-message-input').value.trim();
+            if (!content || !currentProfileTargetId) return alert("Message cannot be empty!");
+            
+            const chatId = getChatId(auth.currentUser.uid, currentProfileTargetId);
+            
+            try {
+                await db.collection('chats').doc(chatId).collection('messages').add({
+                    content: content,
+                    senderId: auth.currentUser.uid,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                document.getElementById('profile-message-input').value = '';
+                alert("Message sent!");
+                // Optionally open the chat window
+                loadChat(currentProfileTargetId);
+            } catch (e) {
+                alert("Error sending message: " + e.message);
+            }
         }
 
         // --- 11. NOTIFICATION LOGIC ---

@@ -229,23 +229,29 @@
             font-weight: 700;
             cursor: pointer; 
             overflow: hidden;
+            flex-shrink: 0;
         }
         .post-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .post-card {
             background-color: var(--color-card-bg);
-            padding: 20px;
+            padding: 0; /* Changed to 0 to let image bleed to edges */
             border-radius: 8px;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
             border: 1px solid var(--color-border);
             max-width: 600px;
             width: 100%;
             margin: 0 0 20px 0;
+            overflow: hidden;
         }
         .post-header {
             display: flex;
             align-items: center;
             justify-content: space-between; 
-            margin-bottom: 10px;
+            padding: 15px; /* Added padding back to header only */
+        }
+        .post-content-text {
+            padding: 0 15px 10px 15px; /* Padding for text */
+            margin: 0;
         }
         .post-header .post-info {
             flex-grow: 1;
@@ -254,6 +260,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+        }
+        .post-actions {
+            padding: 10px 15px;
         }
         .post-actions button {
             background: none;
@@ -494,16 +503,18 @@
             display: none;
         }
 
+        /* Feed Image: Big and Clear */
         .post-media-content {
             width: 100%;
-            border-radius: 8px;
-            margin-top: 10px;
+            max-height: 600px;
+            object-fit: cover;
+            display: block;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: opacity 0.2s;
         }
 
         .post-media-content:hover {
-            transform: scale(1.01);
+            opacity: 0.9;
         }
 
         /* Loading Spinner */
@@ -523,20 +534,39 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Fullscreen Overlay */
+        /* Fullscreen Overlay Style (Updated with Back Arrow) */
         #fullscreen-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             z-index: 3000;
             justify-content: center;
             align-items: center;
+            cursor: default;
         }
 
         #fullscreen-overlay img {
-            max-width: 90%;
-            max-height: 90%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .overlay-back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            z-index: 3100;
+            background: rgba(0,0,0,0.5);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Sidebar for Recommended Users */
@@ -594,7 +624,7 @@
             <button class="settings-toggle">Settings & Support <i class="fas fa-chevron-down"></i></button>
             <div class="settings-menu" style="display: none;">
                 <a href="#" onclick="alert('Help center opened.')">Help Center</a>
-                <a href="#" onclick="alert('Settings page opened.')">App Settings</a>
+                <a href="#" onclick="alert('App Settings opened.')">App Settings</a>
                 <a href="#" onclick="logout()">Logout</a>
             </div>
         </div>
@@ -688,7 +718,10 @@
     </div>
 </div>
 
-<div id="fullscreen-overlay" onclick="this.style.display='none'">
+<div id="fullscreen-overlay">
+    <div class="overlay-back-btn" onclick="document.getElementById('fullscreen-overlay').style.display='none'">
+        <i class="fas fa-arrow-left"></i>
+    </div>
     <img id="fullscreen-img" src="">
 </div>
 
@@ -1556,6 +1589,7 @@
             });
         }
 
+        // Updated Tap to View function
         function enlargeImage(src) {
             document.getElementById('fullscreen-img').src = src;
             document.getElementById('fullscreen-overlay').style.display = 'flex';
@@ -1700,6 +1734,7 @@
             }
         }
 
+        // Updated Render Post to include instant Profile Photo
         function renderPost(post) {
             const postId = post.id;
             const uid = auth.currentUser ? auth.currentUser.uid : null;
@@ -1710,10 +1745,14 @@
             postElement.classList.add('post-card');
             postElement.setAttribute('id', `post-${postId}`);
 
+            // Fetch user data for the avatar (from cache or async)
+            // For instantaneous feel, we use the initials first, then let the image load
+            const initial = (post.displayName || 'U').charAt(0).toUpperCase();
+
             postElement.innerHTML = `
                 <div class="post-header">
                     <div style="display: flex; align-items: center; cursor: pointer;" onclick="loadProfileOfPostAuthor('${post.userId}')">
-                        <div class="post-avatar">${(post.displayName || 'U').charAt(0).toUpperCase()}</div>
+                        <div class="post-avatar" id="avatar-${postId}">${initial}</div>
                         <div class="post-info">
                             <span class="post-username" style="font-weight: 600;">${post.displayName || 'Unknown'}</span>
                             <div style="font-size: 0.8rem; color: var(--color-secondary);">${post.timestamp ? new Date(post.timestamp.toDate()).toLocaleTimeString() : 'Just now'}</div>
@@ -1721,8 +1760,8 @@
                     </div>
                     ${post.userId === uid ? `<button class="btn-icon delete-post-btn" onclick="deletePost('${postId}')"><i class="fas fa-trash"></i></button>` : ''}
                 </div>
-                <p>${post.content}</p>
-                ${post.imageUrl ? `<img src="${post.imageUrl}" class="post-media-content" onclick="enlargeImage('${post.imageUrl}')">` : ''}
+                <p class="post-content-text">${post.content}</p>
+                ${post.imageUrl ? `<img src="${post.imageUrl}" class="post-media-content" onclick="enlargeImage('${post.imageUrl}')" alt="Post content">` : ''}
                 <div class="post-actions">
                     <button onclick="toggleLike('${postId}')" style="color: ${isLiked ? 'var(--color-danger)' : 'var(--color-text)'}">
                         <i class="${likeIconClass}"></i> Like (${post.likesCount || 0})
@@ -1731,6 +1770,15 @@
                     <button onclick="sharePost('${postId}')"><i class="fas fa-share"></i> Share</button>
                 </div>
             `;
+
+            // Background Task: Load actual profile photo for the feed
+            getUserData(post.userId).then(data => {
+                if (data.profilePic) {
+                    const avatarDiv = document.getElementById(`avatar-${postId}`);
+                    if (avatarDiv) avatarDiv.innerHTML = `<img src="${data.profilePic}">`;
+                }
+            });
+
             return postElement;
         }
         

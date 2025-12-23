@@ -468,6 +468,20 @@
             position: absolute;
             right: 10px;
         }
+
+        /* Added Styling for Sidebar Notification Badges */
+        .sidebar-badge {
+            background-color: #ff4d4d;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: auto;
+            min-width: 20px;
+            text-align: center;
+            display: none;
+        }
         
         /* Notification List Style */
         .notification-item {
@@ -682,11 +696,15 @@
         <div class="drawer-links">
             <a href="#" onclick="navigateAndClose('profile-page-view', auth.currentUser.uid)"><i class="fas fa-user"></i> Profile</a>
             <a href="#" onclick="navigateAndClose('home-view')"><i class="fas fa-rss"></i> Feed</a>
-            <a href="#" onclick="navigateAndClose('chat-page-view', null, event)"><i class="fas fa-comment-dots"></i> Chat <span class="beta-badge">Beta</span></a>
+            <a href="#" onclick="navigateAndClose('chat-page-view', null, event)">
+                <i class="fas fa-comment-dots"></i> Chat <span class="beta-badge">Beta</span>
+                <span id="sidebar-chat-badge" class="sidebar-badge">0</span>
+            </a>
             
             <a href="#" onclick="navigateAndClose('notifications-view')">
                 <i class="fas fa-bell"></i> Notifications 
                 <span id="notification-count" class="badge" style="position: static; margin-left: auto; display: none;"></span>
+                <span id="sidebar-notify-badge" class="sidebar-badge">0</span>
             </a>
             
             <a href="#" onclick="alert('Bookmarks feature coming soon!')"><i class="fas fa-bookmark"></i> Bookmarks</a>
@@ -1020,6 +1038,7 @@
         let unsubscribeFromComments = null; 
         let unsubscribeFromNotifications = null; 
         let unsubscribeFromChatsList = null;
+        let unsubscribeFromSidebarChat = null; // New listener for sidebar
         let currentFeedView = 'following'; 
         
         const authView = document.getElementById('auth-view');
@@ -1041,6 +1060,10 @@
         const notificationCountBadge = document.getElementById('notification-count');
         const headerNotifBadge = document.getElementById('header-notif-badge');
         
+        // Sidebar Badge References
+        const sidebarChatBadge = document.getElementById('sidebar-chat-badge');
+        const sidebarNotifyBadge = document.getElementById('sidebar-notify-badge');
+
         // CHAT UI REFERENCES
         const chatWindowModal = document.getElementById('chat-window-modal');
         const chatMessagesContainer = document.getElementById('chat-messages');
@@ -1245,6 +1268,7 @@
                 if (unsubscribeFromFeed) { unsubscribeFromFeed(); unsubscribeFromFeed = null; }
                 if (unsubscribeFromNotifications) { unsubscribeFromNotifications(); unsubscribeFromNotifications = null; }
                 if (unsubscribeFromChatsList) { unsubscribeFromChatsList(); unsubscribeFromChatsList = null; }
+                if (unsubscribeFromSidebarChat) { unsubscribeFromSidebarChat(); unsubscribeFromSidebarChat = null; }
                 userCache = {}; 
                 currentAdminUser.isAdmin = false;
             }).catch(error => {
@@ -1311,6 +1335,7 @@
                         
                         loadDrawerProfile(user.uid); 
                         startNotificationListener(user.uid); 
+                        startSidebarChatListener(user.uid); // Start sidebar chat listener
                         switchFeedView(currentFeedView, true); 
 
                     })
@@ -1328,6 +1353,7 @@
                 if (unsubscribeFromFeed) { unsubscribeFromFeed(); unsubscribeFromFeed = null; }
                 if (unsubscribeFromNotifications) { unsubscribeFromNotifications(); unsubscribeFromNotifications = null; }
                 if (unsubscribeFromChatsList) { unsubscribeFromChatsList(); unsubscribeFromChatsList = null; }
+                if (unsubscribeFromSidebarChat) { unsubscribeFromSidebarChat(); unsubscribeFromSidebarChat = null; }
                 userCache = {};
                 currentAdminUser.isAdmin = false;
             }
@@ -1486,6 +1512,12 @@
                 headerNotifBadge.innerText = unreadCount;
                 headerNotifBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
 
+                // Sidebar Notification Badge Update
+                if (sidebarNotifyBadge) {
+                    sidebarNotifyBadge.innerText = unreadCount;
+                    sidebarNotifyBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+                }
+
                 // Trigger Toast for new changes
                 snapshot.docChanges().forEach(change => {
                     if (change.type === "added") {
@@ -1495,6 +1527,26 @@
                 });
             }, error => {
                 console.error("Error listening to notifications:", error);
+            });
+        }
+
+        // --- NEW: SIDEBAR CHAT LISTENER ---
+        function startSidebarChatListener(uid) {
+            if (unsubscribeFromSidebarChat) unsubscribeFromSidebarChat();
+
+            const chatQuery = db.collection('user_chats').doc(uid).collection('active')
+                .where('unreadCount', '>', 0);
+
+            unsubscribeFromSidebarChat = chatQuery.onSnapshot(snapshot => {
+                let totalUnread = 0;
+                snapshot.forEach(doc => {
+                    totalUnread += doc.data().unreadCount || 0;
+                });
+
+                if (sidebarChatBadge) {
+                    sidebarChatBadge.innerText = totalUnread;
+                    sidebarChatBadge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+                }
             });
         }
 

@@ -24,6 +24,7 @@
             --color-secondary: #6b7280; 
             --color-admin-accent: #10b981; /* New Admin Green */
             --font-stack: 'Inter', sans-serif;
+            --color-badge: #ff4d4d; /* Notification Red */
         }
 
         /* Dark Mode Toggle */
@@ -471,7 +472,7 @@
 
         /* Added Styling for Sidebar Notification Badges */
         .sidebar-badge {
-            background-color: #ff4d4d;
+            background-color: var(--color-badge);
             color: white;
             font-size: 0.75rem;
             font-weight: bold;
@@ -480,7 +481,7 @@
             margin-left: auto;
             min-width: 20px;
             text-align: center;
-            display: none;
+            display: none; /* Initially hidden */
         }
         
         /* Notification List Style */
@@ -1512,7 +1513,7 @@
                 headerNotifBadge.innerText = unreadCount;
                 headerNotifBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
 
-                // Sidebar Notification Badge Update
+                // Sidebar Notification Badge Update (The red badge next to "Notifications")
                 if (sidebarNotifyBadge) {
                     sidebarNotifyBadge.innerText = unreadCount;
                     sidebarNotifyBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';

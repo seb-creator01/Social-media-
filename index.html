@@ -1518,6 +1518,9 @@
                     sidebarNotifyBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
                 }
 
+                // Browser Tab Title Update
+                document.title = unreadCount > 0 ? `(${unreadCount}) SociaLink` : `SociaLink`;
+
                 // Trigger Toast for new changes
                 snapshot.docChanges().forEach(change => {
                     if (change.type === "added") {
@@ -1719,6 +1722,22 @@
             reader.readAsDataURL(event.target.files[0]);
         }
 
+        // FEATURE: Mention Logic
+        async function handleMentions(text, postId) {
+            const mentionRegex = /@(\w+)/g;
+            const matches = text.match(mentionRegex);
+            if (matches) {
+                for (let mention of matches) {
+                    const username = mention.substring(1);
+                    const userSnap = await db.collection('users').where('displayName', '==', username).get();
+                    if (!userSnap.empty) {
+                        const targetUserId = userSnap.docs[0].id;
+                        createNotification(targetUserId, 'mention', auth.currentUser.displayName, auth.currentUser.uid, postId);
+                    }
+                }
+            }
+        }
+
         async function createPostWithImage() {
             const text = document.getElementById('post-text').value;
             const fileInput = document.getElementById('post-media');
@@ -1747,11 +1766,15 @@
                 likesCount: 0,
                 commentsCount: 0,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
+            }).then((docRef) => {
                 spinner.style.display = 'none';
                 document.getElementById('post-text').value = '';
                 document.getElementById('image-preview').style.display = 'none';
                 fileInput.value = '';
+                
+                // TRIGGER MENTIONS
+                handleMentions(text, docRef.id);
+
                 if (currentFeedView === 'following') loadFeed(); else loadExploreFeed();
             }).catch(err => {
                 spinner.style.display = 'none';
@@ -1845,6 +1868,13 @@
                 if (notificationNeeded) {
                      const sourceUserName = auth.currentUser.displayName;
                     await createNotification(postAuthorId, 'like', sourceUserName, uid, postId);
+                    
+                    // FEATURE: Milestone Notification
+                    const updatedPost = await postRef.get();
+                    const count = updatedPost.data().likesCount;
+                    if ([10, 50, 100].includes(count)) {
+                        createNotification(postAuthorId, 'milestone', 'System', 'system-bot', count);
+                    }
                 }
 
             } catch (error) {
@@ -1854,6 +1884,15 @@
         
         function sharePost(postId) {
             const shareText = `Check out this post on SociaLink!`;
+            
+            // Trigger Repost Notification
+            db.collection('posts').doc(postId).get().then(doc => {
+                const data = doc.data();
+                if (data.userId !== auth.currentUser.uid) {
+                    createNotification(data.userId, 'repost', auth.currentUser.displayName, auth.currentUser.uid, postId);
+                }
+            });
+
             if (navigator.share) {
                 navigator.share({ title: 'SociaLink', text: shareText, url: window.location.href });
             } else {
@@ -2091,6 +2130,13 @@
                     });
                     t.update(postRef, { commentsCount: firebase.firestore.FieldValue.increment(1) });
                 });
+
+                // Trigger Notification for Comment
+                const postDoc = await db.collection('posts').doc(postId).get();
+                if (postDoc.data().userId !== auth.currentUser.uid) {
+                    createNotification(postDoc.data().userId, 'comment', auth.currentUser.displayName, auth.currentUser.uid, postId);
+                }
+
                 input.value = '';
             } catch (e) {}
         }
@@ -2158,6 +2204,9 @@
                 timestamp: timestamp,
                 unreadCount: firebase.firestore.FieldValue.increment(1)
             }, { merge: true });
+
+            // 4. Trigger Notification
+            createNotification(activeRecipientUID, 'message', auth.currentUser.displayName, auth.currentUser.uid);
 
             chatInput.value = '';
         }
@@ -2234,6 +2283,9 @@
                     lastMessage: content, recipientId: auth.currentUser.uid, timestamp: timestamp, unreadCount: firebase.firestore.FieldValue.increment(1)
                 }, { merge: true });
                 
+                // Trigger notification
+                createNotification(currentProfileTargetId, 'message', auth.currentUser.displayName, auth.currentUser.uid);
+
                 document.getElementById('profile-message-input').value = '';
                 showToast("Message sent!");
                 loadChat(currentProfileTargetId);
@@ -2246,21 +2298,64 @@
         async function createNotification(rid, type, name, sid, pid = null) {
             if (rid === sid) return;
             let msg;
-            if (type === 'follow') msg = `${name} followed you.`;
-            else if (type === 'like') msg = `${name} liked your post.`;
-            else return;
+            let url = 'home-view';
+            
+            if (type === 'follow') {
+                msg = `${name} followed you.`;
+                url = `profile-page-view/${sid}`;
+            } else if (type === 'like') {
+                msg = `${name} liked your post.`;
+            } else if (type === 'comment') {
+                msg = `${name} commented on your post.`;
+            } else if (type === 'message') {
+                msg = `${name} sent you a message.`;
+                url = `chat-page-view`;
+            } else if (type === 'mention') {
+                msg = `${name} mentioned you in a post.`;
+            } else if (type === 'repost') {
+                msg = `${name} shared your post.`;
+            } else if (type === 'milestone') {
+                msg = `Congrats! Your post reached ${pid} likes!`;
+            }
+
             db.collection('notifications').add({
-                recipientId: rid, senderId: sid, type: type, message: msg, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                read: false, postId: pid, url: type === 'follow' ? `profile-page-view/${sid}` : 'home-view'
+                recipientId: rid, 
+                senderId: sid, 
+                type: type, 
+                message: msg, 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                read: false, 
+                postId: pid, 
+                url: url
             });
         }
         
         function renderNotification(n) {
             const el = document.createElement('div'); el.classList.add('notification-item'); if (!n.read) el.classList.add('unread');
-            el.innerHTML = `<div>${n.message}</div>`;
+            
+            // Standard Icons
+            const icons = {
+                'like': 'fa-heart',
+                'follow': 'fa-user-plus',
+                'comment': 'fa-comment',
+                'mention': 'fa-at',
+                'message': 'fa-envelope',
+                'repost': 'fa-retweet',
+                'milestone': 'fa-trophy'
+            };
+            const icon = icons[n.type] || 'fa-bell';
+
+            el.innerHTML = `
+                <div style="display: flex; align-items: center;">
+                    <i class="fas ${icon}" style="margin-right: 15px; color: var(--color-primary);"></i>
+                    <div>${n.message}</div>
+                </div>
+            `;
+
             el.onclick = () => {
                 if (!n.read) db.collection('notifications').doc(n.id).update({ read: true });
-                const parts = n.url.split('/'); navigateAndClose(parts[0], parts[1]);
+                const parts = n.url.split('/'); 
+                navigateAndClose(parts[0], parts[1]);
             };
             return el;
         }

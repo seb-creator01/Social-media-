@@ -108,7 +108,15 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
             max-width: 400px;
             margin: 50px auto;
+            transition: transform 0.2s ease;
         }
+
+        /* Hovering effect for high-end feel */
+        .post-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
         #auth-view .card {
             max-width: 400px;
             margin: 10vh auto;
@@ -243,6 +251,7 @@
             width: 100%;
             margin: 0 0 20px 0;
             overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .post-header {
             display: flex;
@@ -490,6 +499,7 @@
             border-bottom: 1px solid var(--color-border);
             cursor: pointer;
             transition: background-color 0.2s;
+            animation: slideIn 0.3s ease-out;
         }
         .notification-item:hover {
             background-color: var(--color-bg);
@@ -497,6 +507,7 @@
         .notification-item.unread {
             background-color: var(--color-border); /* Highlight unread */
             font-weight: 600;
+            border-left: 4px solid var(--color-primary);
         }
 
         /* Back Button */
@@ -669,12 +680,23 @@
             margin-top: 10px;
             display: flex;
             align-items: center;
-            animation: slideIn 0.3s ease-out;
+            animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
             border-left: 4px solid var(--color-primary);
         }
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Animation for High-End "Pulse" Feed */
+        .important-feed-glow {
+            box-shadow: 0 0 15px var(--color-primary);
+            animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px var(--color-primary); }
+            50% { box-shadow: 0 0 20px var(--color-primary); }
+            100% { box-shadow: 0 0 5px var(--color-primary); }
         }
 
     </style>
@@ -1481,12 +1503,38 @@
             }
         }
 
+        /* --- LOCAL NOTIFICATION TRIGGER (XOX-ARENA STYLE) --- */
+        function triggerSocialNotification(config) {
+            // 1. Audio Polish
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+            audio.volume = 0.5;
+            audio.play().catch(() => {}); // Catch browser block
+
+            // 2. Mobile Vibration / Haptic Pulse
+            if ("vibrate" in navigator) {
+                navigator.vibrate(config.vibrate || [100, 50, 100]);
+            }
+
+            // 3. Browser System Notification
+            if (Notification.permission === "granted") {
+                new Notification(config.title, {
+                    body: config.body,
+                    icon: config.icon || 'https://via.placeholder.com/128'
+                });
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission();
+            }
+
+            // 4. In-App Visual Toast
+            showToast(config.body);
+        }
+
         /* --- TOAST & NOTIFICATION LISTENER --- */
         function showToast(message) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = 'toast';
-            toast.innerHTML = `<i class="fas fa-info-circle" style="margin-right:10px; color:var(--color-primary)"></i> <span>${message}</span>`;
+            toast.innerHTML = `<i class="fas fa-sparkles" style="margin-right:10px; color:var(--color-primary)"></i> <span>${message}</span>`;
             container.appendChild(toast);
             setTimeout(() => {
                 toast.style.opacity = '0';
@@ -1522,11 +1570,18 @@
                 // Browser Tab Title Update
                 document.title = unreadCount > 0 ? `(${unreadCount}) SociaLink` : `SociaLink`;
 
-                // Trigger Toast for new changes
+                // Trigger Toast & System Alert for new changes
                 snapshot.docChanges().forEach(change => {
                     if (change.type === "added") {
                         const data = change.doc.data();
-                        showToast(data.message);
+                        
+                        // Use Local Notification Logic
+                        triggerSocialNotification({
+                            title: 'SociaLink Update',
+                            body: data.message,
+                            vibrate: data.type === 'message' ? [200, 100, 200] : [100],
+                            icon: '/favicon.ico'
+                        });
                     }
                 });
             }, error => {
@@ -1955,8 +2010,10 @@
             postElement.classList.add('post-card');
             postElement.setAttribute('id', `post-${postId}`);
 
+            // High-End Flair: Check if it's an "Important Feed" item
+            if (post.isImportant) postElement.classList.add('important-feed-glow');
+
             // Fetch user data for the avatar (from cache or async)
-            // For instantaneous feel, we use the initials first, then let the image load
             const initial = (post.displayName || 'U').charAt(0).toUpperCase();
 
             postElement.innerHTML = `

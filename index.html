@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 
     <style>
         /* --- CSS VARIABLES FOR THEMEING --- */
@@ -1040,6 +1041,8 @@
         const app = firebase.initializeApp(firebaseConfig);
         const auth = app.auth();
         const db = app.firestore();
+        // ADDED: Initialize Messaging
+        const messaging = firebase.messaging();
 
         // CLOUDINARY CONFIG
         const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/ddahxbbct/image/upload";
@@ -1320,6 +1323,9 @@
                 drawerToggleArea.style.display = 'block';
                 document.getElementById('header-profile-section').style.display = 'flex';
                 
+                // ADDED: Request notification permission on login
+                requestNotificationPermission(user.uid);
+
                 user.getIdTokenResult(true) 
                     .then((idTokenResult) => {
                         const claims = idTokenResult.claims;
@@ -1382,6 +1388,27 @@
             }
         });
 
+        // ADDED: Notification Permission Logic
+        async function requestNotificationPermission(uid) {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    const token = await messaging.getToken({ vapidKey: 'YOUR_VAPID_KEY_HERE' });
+                    if (token) {
+                        saveTokenToDatabase(token, uid);
+                    }
+                }
+            } catch (err) {
+                console.log('Notification setup failed:', err);
+            }
+        }
+
+        // ADDED: Save FCM Token to Firestore
+        async function saveTokenToDatabase(token, uid) {
+            await db.collection('users').doc(uid).update({
+                fcmToken: token
+            });
+        }
 
         async function loadDrawerProfile(uid) {
             const data = await getUserData(uid);

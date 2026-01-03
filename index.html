@@ -1330,6 +1330,9 @@
                 // ADDED: Request notification permission on login
                 requestNotificationPermission(user.uid);
 
+                // SYNC NOTIFICATIONS & MESSAGES ON LOGIN
+                syncCountsOnLogin(user.uid);
+
                 user.getIdTokenResult(true) 
                     .then((idTokenResult) => {
                         const claims = idTokenResult.claims;
@@ -1392,6 +1395,26 @@
             }
         });
 
+        // SYNC COUNTS ON LOGIN
+        async function syncCountsOnLogin(uid) {
+            // Sync Notifications
+            const notifSnap = await db.collection('notifications').where('recipientId', '==', uid).where('read', '==', false).get();
+            const unreadNotifs = notifSnap.size;
+            notificationCountBadge.innerText = unreadNotifs;
+            notificationCountBadge.style.display = unreadNotifs > 0 ? 'inline-block' : 'none';
+            headerNotifBadge.innerText = unreadNotifs;
+            headerNotifBadge.style.display = unreadNotifs > 0 ? 'inline-block' : 'none';
+
+            // Sync Chat Messages
+            const chatSnap = await db.collection('user_chats').doc(uid).collection('active').where('unreadCount', '>', 0).get();
+            let totalUnreadMessages = 0;
+            chatSnap.forEach(doc => totalUnreadMessages += doc.data().unreadCount);
+            if (sidebarChatBadge) {
+                sidebarChatBadge.innerText = totalUnreadMessages;
+                sidebarChatBadge.style.display = totalUnreadMessages > 0 ? 'inline-block' : 'none';
+            }
+        }
+
         // ADDED: Notification Permission Logic
         async function requestNotificationPermission(uid) {
             try {
@@ -1400,6 +1423,7 @@
                     // UPDATED: Using provided VAPID key
                     const token = await messaging.getToken({ vapidKey: 'BMBe6YHpFMtFnrEbE4Bump1fReCiPOG5rUhBxFSW1gS06gLyEoK_ziQYWguGUKiuMM8qTZ813g6NJLQBp9SDaJA' });
                     if (token) {
+                        alert("COPY THIS TOKEN FOR TESTING:\n" + token);
                         saveTokenToDatabase(token, uid);
                     }
                 }

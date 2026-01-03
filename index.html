@@ -1330,7 +1330,7 @@
                 // ADDED: Request notification permission on login
                 requestNotificationPermission(user.uid);
 
-                // SYNC NOTIFICATIONS & MESSAGES ON LOGIN
+                // SYNC COUNTS ON LOGIN
                 syncCountsOnLogin(user.uid);
 
                 user.getIdTokenResult(true) 
@@ -2474,10 +2474,25 @@
             return el;
         }
 
+        // UPDATED: This now clears the "Loading" state and populates with real data
         function loadNotifications() {
-             const list = document.getElementById('notifications-list'); list.innerHTML = '';
-             db.collection('notifications').where('recipientId', '==', auth.currentUser.uid).orderBy('timestamp', 'desc').limit(50).onSnapshot(snap => {
-                list.innerHTML = ''; snap.docs.forEach(doc => { const data = doc.data(); data.id = doc.id; list.appendChild(renderNotification(data)); });
+             const list = document.getElementById('notifications-list'); 
+             list.innerHTML = '<p style="text-align: center; color: var(--color-secondary);">Fetching updates...</p>';
+             
+             db.collection('notifications')
+                .where('recipientId', '==', auth.currentUser.uid)
+                .orderBy('timestamp', 'desc')
+                .limit(50)
+                .onSnapshot(snap => {
+                    list.innerHTML = ''; 
+                    if (snap.empty) {
+                        list.innerHTML = '<p style="text-align: center; color: var(--color-secondary);">No notifications yet.</p>';
+                    }
+                    snap.docs.forEach(doc => { 
+                        const data = doc.data(); 
+                        data.id = doc.id; 
+                        list.appendChild(renderNotification(data)); 
+                    });
              });
         }
         

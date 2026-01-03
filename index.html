@@ -818,6 +818,10 @@
         <div id="search-results-area" style="margin-top: 10px;"></div>
     </div>
 
+    <div id="important-posts-area" class="card" style="margin: 0 auto 20px auto; max-width: 600px; display: none; border-left: 5px solid var(--color-primary);">
+        <h4 style="color: var(--color-primary);"><i class="fas fa-bullhorn"></i> Important Posts</h4>
+        <div id="important-posts-list"></div>
+    </div>
     <div class="feed-column">
         <div class="card" style="margin: 0 0 20px 0; max-width: 600px; width: 100%;">
             <h4>What's on your mind, <span id="current-user-name"></span>?</h4>
@@ -2479,6 +2483,36 @@
              const data = await getUserData(document.getElementById('admin-user-search-input').value.trim());
              document.getElementById('admin-user-search-result').innerText = `User: ${data.displayName} (${data.email})`;
         }
+
+        // --- NEW: MANUAL IMPORTANT POSTS LOGIC (NO API) ---
+        function checkImportantPosts() {
+            // You can manually update this list whenever you have an important post
+            const posts = [
+                { id: 1, title: "Welcome to SociaLink!", text: "Start connecting with friends and sharing posts.", date: "2026-01-03" },
+                { id: 2, title: "Platform Update", text: "New notification features are now live!", date: "2026-01-03" }
+            ];
+
+            const area = document.getElementById('important-posts-area');
+            const list = document.getElementById('important-posts-list');
+            
+            if(posts.length > 0) {
+                area.style.display = 'block';
+                list.innerHTML = '';
+                posts.forEach(p => {
+                    list.innerHTML += `
+                        <div style="margin-bottom: 10px; padding: 10px; background: var(--color-bg); border-radius: 4px;">
+                            <strong>${p.title}</strong><br>
+                            <small>${p.text}</small>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        // Run this when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            checkImportantPosts();
+        });
         
     </script>
 </body>

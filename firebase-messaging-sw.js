@@ -1,8 +1,40 @@
-// Give the service worker access to Firebase Messaging.
+/**
+ * 1. EVENT LISTENERS FIRST
+ * We register the click listener at the very top to ensure the browser 
+ * attaches it before any script timeouts or Firebase initialization.
+ */
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification click detected.');
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a tab is already open, focus it
+      for (const client of clientList) {
+        if (client.url === targetUrl && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // If no tab is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+/**
+ * 2. IMPORT FIREBASE SDKS
+ * Using compat version 10.7.1 as requested.
+ */
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-// Initialize the Firebase app in the service worker
+/**
+ * 3. INITIALIZE FIREBASE
+ */
 firebase.initializeApp({
     apiKey: "AIzaSyCykBKGTQ3lKc06ZRfE9S4KLjphHPEJiu0",
     authDomain: "social-media-platform-b3242.firebaseapp.com",
@@ -14,41 +46,26 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// This handles notifications when the tab is closed or in the background
+/**
+ * 4. BACKGROUND MESSAGE HANDLER
+ * This catches "data" messages. If you send a "notification" payload, 
+ * the browser may show its own default UI and skip this function.
+ */
 messaging.onBackgroundMessage((payload) => {
-  console.log('Background message received: ', payload);
-  
-  // Updated to include a fallback in case payload.notification is undefined
+  console.log('[SW] Background message received: ', payload);
+
   const notificationTitle = payload.notification?.title || payload.data?.title || "New Notification";
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.body || "You have a new update.",
-    icon: '/firebase-logo.png', // Keep your original path
+    icon: '/firebase-logo.png',
+    badge: '/firebase-logo.png', // Small icon for the status bar
+    tag: 'social-update',        // Prevents duplicate notifications
     data: {
-      url: '/' // This allows us to capture the URL for the click event below
+      url: payload.data?.url || '/' 
     }
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
-// NEW: Add a listener for when the user clicks the notification
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close(); // Close the notification banner
-
-  // Open the app or a specific URL when clicked
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      if (clientList.length > 0) {
-        let client = clientList[0];
-        for (let i = 0; i < clientList.length; i++) {
-          if (clientList[i].focused) {
-            client = clientList[i];
-          }
-        }
-        return client.focus();
-      }
-      return clients.openWindow(event.notification.data.url);
-    })
-  );
+  // self.registration is the standard way to trigger the UI from the SW
+  return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 

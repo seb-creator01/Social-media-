@@ -1393,7 +1393,8 @@
             try {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
-                    const token = await messaging.getToken({ vapidKey: 'YOUR_VAPID_KEY_HERE' });
+                    // UPDATED: Using provided VAPID key
+                    const token = await messaging.getToken({ vapidKey: 'BMBe6YHpFMtFnrEbE4Bump1fReCiPOG5rUhBxFSW1gS06gLyEoK_ziQYWguGUKiuMM8qTZ813g6NJLQBp9SDaJA' });
                     if (token) {
                         saveTokenToDatabase(token, uid);
                     }

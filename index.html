@@ -455,15 +455,21 @@
             color: var(--color-secondary);
         }
         
-        /* Badge style for notifications */
+        /* UPDATED: Red notification bubble style */
         .badge {
-            background-color: var(--color-danger);
+            background-color: var(--color-badge);
             color: white;
             border-radius: 50%;
-            padding: 2px 6px;
+            min-width: 18px;
+            height: 18px;
+            padding: 2px;
             font-size: 0.7rem;
             font-weight: bold;
-            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            border: 2px solid var(--color-card-bg);
         }
 
         .unread-chat-badge {
@@ -480,18 +486,20 @@
             right: 10px;
         }
 
-        /* Added Styling for Sidebar Notification Badges */
+        /* UPDATED: Sidebar Notification Badges */
         .sidebar-badge {
             background-color: var(--color-badge);
             color: white;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: bold;
-            padding: 2px 8px;
-            border-radius: 12px;
-            margin-left: auto;
             min-width: 20px;
-            text-align: center;
+            height: 20px;
+            border-radius: 50%;
+            margin-left: auto;
             display: none; /* Initially hidden */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         
         /* Notification List Style */
@@ -727,7 +735,6 @@
             
             <a href="#" onclick="navigateAndClose('notifications-view')">
                 <i class="fas fa-bell"></i> Notifications 
-                <span id="notification-count" class="badge" style="position: static; margin-left: auto; display: none;"></span>
                 <span id="sidebar-notify-badge" class="sidebar-badge">0</span>
             </a>
             
@@ -1087,7 +1094,7 @@
         const drawerAdminLink = document.getElementById('drawer-admin-link'); // ADMIN LINK REF
         const settingsToggle = document.querySelector('.settings-toggle');
         const settingsMenu = document.querySelector('.settings-menu');
-        const notificationCountBadge = document.getElementById('notification-count');
+        // UPDATED: Standardizing notification badge logic
         const headerNotifBadge = document.getElementById('header-notif-badge');
         
         // Sidebar Badge References
@@ -1400,10 +1407,12 @@
             // Sync Notifications
             const notifSnap = await db.collection('notifications').where('recipientId', '==', uid).where('read', '==', false).get();
             const unreadNotifs = notifSnap.size;
-            notificationCountBadge.innerText = unreadNotifs;
-            notificationCountBadge.style.display = unreadNotifs > 0 ? 'inline-block' : 'none';
+            if (sidebarNotifyBadge) {
+                sidebarNotifyBadge.innerText = unreadNotifs;
+                sidebarNotifyBadge.style.display = unreadNotifs > 0 ? 'flex' : 'none';
+            }
             headerNotifBadge.innerText = unreadNotifs;
-            headerNotifBadge.style.display = unreadNotifs > 0 ? 'inline-block' : 'none';
+            headerNotifBadge.style.display = unreadNotifs > 0 ? 'flex' : 'none';
 
             // Sync Chat Messages
             const chatSnap = await db.collection('user_chats').doc(uid).collection('active').where('unreadCount', '>', 0).get();
@@ -1411,7 +1420,7 @@
             chatSnap.forEach(doc => totalUnreadMessages += doc.data().unreadCount);
             if (sidebarChatBadge) {
                 sidebarChatBadge.innerText = totalUnreadMessages;
-                sidebarChatBadge.style.display = totalUnreadMessages > 0 ? 'inline-block' : 'none';
+                sidebarChatBadge.style.display = totalUnreadMessages > 0 ? 'flex' : 'none';
             }
         }
 
@@ -1611,16 +1620,14 @@
             unsubscribeFromNotifications = notificationsRef.onSnapshot(snapshot => {
                 const unreadCount = snapshot.size;
                 
-                // Update UI Badges
-                notificationCountBadge.innerText = unreadCount;
-                notificationCountBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+                // Update Header UI Badge
                 headerNotifBadge.innerText = unreadCount;
-                headerNotifBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+                headerNotifBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
 
-                // Sidebar Notification Badge Update (The red badge next to "Notifications")
+                // Sidebar Notification Badge Update (The red circle in drawer)
                 if (sidebarNotifyBadge) {
                     sidebarNotifyBadge.innerText = unreadCount;
-                    sidebarNotifyBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+                    sidebarNotifyBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
                 }
 
                 // Browser Tab Title Update
@@ -1660,7 +1667,7 @@
 
                 if (sidebarChatBadge) {
                     sidebarChatBadge.innerText = totalUnread;
-                    sidebarChatBadge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+                    sidebarChatBadge.style.display = totalUnread > 0 ? 'flex' : 'none';
                 }
             });
         }
@@ -2474,7 +2481,7 @@
             return el;
         }
 
-        // UPDATED: This now clears the "Loading" state and populates with real data
+        // UPDATED: Standardized Notification Loading
         function loadNotifications() {
              const list = document.getElementById('notifications-list'); 
              list.innerHTML = '<p style="text-align: center; color: var(--color-secondary);">Fetching updates...</p>';

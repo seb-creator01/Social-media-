@@ -7,6 +7,13 @@ self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification click detected.');
   event.notification.close();
 
+  // FIX: Clear the badge count when the user clicks a notification
+  if (navigator.clearAppBadge) {
+    navigator.clearAppBadge().catch((error) => {
+      console.error('[SW] Error clearing badge:', error);
+    });
+  }
+
   const targetUrl = event.notification.data?.url || '/';
 
   event.waitUntil(
@@ -54,11 +61,20 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('[SW] Background message received: ', payload);
 
+  // FIX: Set the App Badge (the notification count)
+  if (navigator.setAppBadge) {
+    // Looks for a 'count' field in your data payload, defaults to 1 if not found
+    const count = parseInt(payload.data?.count) || 1;
+    navigator.setAppBadge(count).catch((error) => {
+      console.error('[SW] Error setting badge:', error);
+    });
+  }
+
   const notificationTitle = payload.notification?.title || payload.data?.title || "New Notification";
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.body || "You have a new update.",
     icon: '/firebase-logo.png',
-    badge: '/firebase-logo.png', // Small icon for the status bar
+    badge: '/firebase-logo.png', // This is the small icon in the Android status bar
     tag: 'social-update',        // Prevents duplicate notifications
     data: {
       url: payload.data?.url || '/' 
